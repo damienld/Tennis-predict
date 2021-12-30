@@ -487,9 +487,15 @@ class PlayersElo:
             player = players[p]
             last_rating = player.get_latest_rating()
             if int(str(last_rating[2])[0:4]) >= 2020:
-                playersandlastelo.append((player.name, last_rating, player))
+                playersandlastelo.append((player.name, last_rating))
         playersandlastelo.sort(key=lambda x: x[1][0], reverse=False)
         print(*playersandlastelo, sep="\n")
+        """"
+        indices = list(range(len(input)))
+        indices.sort(key=lambda x: input[x])
+        output = [0] * len(indices)
+        for i, x in enumerate(indices):
+            output[x] = i"""
 
     @staticmethod
     def to_dict(players):
