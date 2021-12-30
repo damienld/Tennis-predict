@@ -14,6 +14,7 @@ Set up Black auto-formatting: https://dev.to/adamlombard/how-to-use-the-black-py
 """
 from datetime import date
 from os import stat
+import json
 import pandas as pd
 import numpy as np
 from pandas.core.frame import DataFrame
@@ -49,39 +50,51 @@ def get_data(is_atp: bool, yrstart=2013, yrend=2021) -> DataFrame:
     return dfMatches
 
 
-isatp = True
-df = get_data(True, 2013, 2021)
-playersElo = {}
+playersElo = PlayerElo.deserialize()
+if playersElo == None:
+    isatp = True
+    df = get_data(True, 2013, 2021)
+    playersElo = {}
 
-(
-    df["Elo1"],
-    df["nbElo1"],
-    df["EloAfter1"],
-    df["Elo2"],
-    df["nbElo2"],
-    df["EloAfter2"],
-) = zip(
-    *df.apply(
-        lambda row: PlayerElo.update_elos_matches(
-            playersElo,
-            row.name,
-            row["P1"],
-            row["P1Id"],
-            row["Rk1"],
-            row["P2"],
-            row["P2Id"],
-            row["Rk2"],
-            row["SetsP1"],
-            row["SetsP2"],
-            row["TrnRk"],
-            row["RoundId"],
-            row["Date"],
-            row["IsCompleted"],
-            isatp,
-            True,
-        ),
-        axis=1,
+    (
+        df["Elo1"],
+        df["nbElo1"],
+        df["EloAfter1"],
+        df["Elo2"],
+        df["nbElo2"],
+        df["EloAfter2"],
+    ) = zip(
+        *df.apply(
+            lambda row: PlayerElo.update_elos_matches(
+                playersElo,
+                row.name,
+                row["P1"],
+                row["P1Id"],
+                row["Rk1"],
+                row["P2"],
+                row["P2Id"],
+                row["Rk2"],
+                row["SetsP1"],
+                row["SetsP2"],
+                row["TrnRk"],
+                row["RoundId"],
+                row["Date"],
+                row["IsCompleted"],
+                isatp,
+                True,
+            ),
+            axis=1,
+        )
     )
-)
-df.to_csv("a.csv")
+    df.to_csv("dfWithElos.csv")
+    PlayerElo.serialize(playersElo)
+
 PlayerElo.get_ranking(playersElo)
+# a = PlayerElo.to_dict(playersElo)
+"""
+def save_elo(players: dict):
+    with open("playersElo.json", "w") as fp:
+        json.dump(a, fp, indent=2)
+"""
+playersElo2021 = PlayerElo.filterplayersratings_byyear(playersElo, 2021)
+PlayerElo.serialize(playersElo2021, "Elo2021.json")
