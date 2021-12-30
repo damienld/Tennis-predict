@@ -2,6 +2,7 @@
 """
 
 from datetime import datetime
+import json
 from typing import Tuple
 
 ListRankEloATPMin = [450, 380, 300, 250, 200, 150, 100, 75, 50, 25, 15, 10, 1]
@@ -63,40 +64,44 @@ class PlayerElo:
     A class to represent a player in the Elo Rating System
     """
 
-    def __str__(self):
-        rating = self.get_latest_rating()
-        return ("{0} {} ({})").format(self.name, rating[0], rating[1])
-
     def __init__(self, name: str, id: str, rating):
-        """
-        Runs at initialization of class object.
-        @param name - TODO
-        @param rating - TODO
-        """
         self.id = id
         self.name = name
-        # comment the 2 lines below in order to start with a rating associated to current player ATP rank
+        # comment the 2 lines below in order to start with a rating associated to current player rank
         self.eloratings = {0: 1500}
         self.elomatches = {0: 0}
         self.initialrating = rating
+
+    def __str__(self):
+        rating = self.get_latest_rating()
+        return ("{0} {} ({})").format(self.name, rating[0], rating[1])
 
     def get_latest_rating(self) -> Tuple[float, int, int]:
         if len(self.eloratings) <= 0:
             return self.initialrating, 0, 0
         else:
             max_date = max(self.eloratings.keys(), key=int)
-            return self.eloratings[max_date], self.elomatches[max_date], max_date
+            return (
+                self.eloratings[max_date],
+                round(self.elomatches[max_date]),
+                max_date,
+            )
 
     def get_rating_before_date(self, date: datetime) -> Tuple[float, int, int]:
+        # ToDo test!
         filtered_dict = {k: v for (k, v) in self.eloratings.items() if k < date}
         if len(self.eloratings.keys) <= 0:
             return self.initialrating, 0, 0
         else:
             max_date = max(self.eloratings.keys)
-            return self.eloratings[max_date], self.elomatches[max_date], max_date
+            return (
+                self.eloratings[max_date],
+                round(self.elomatches[max_date]),
+                max_date,
+            )
 
     def add_rating(
-        self, newrating: float, date: datetime, nr_matches_to_add: int
+        self, newrating: int, date: datetime, nr_matches_to_add: int
     ) -> None:
         # the key will be the date of the day + the match index for the day: 0
         day = "{0}{1}{2}{3}".format(
@@ -118,6 +123,56 @@ class PlayerElo:
         day = int(day)
         self.eloratings[day] = newrating
         self.elomatches[day] = nr_matches_to_add
+
+    @staticmethod
+    def to_dict(players):
+        newdict = {}
+        for player in players.values():
+            if isinstance(player, PlayerElo):
+                dict = {
+                    "name": player.name,
+                    "eloratings": player.eloratings,
+                    "elomatches": player.elomatches,
+                }
+                newdict[player.id] = dict
+            else:
+                type_name = player.__class__.__name__
+                raise TypeError("Unexpected type {0}".format(type_name))
+        return newdict
+
+    @staticmethod
+    def fromJson(players):
+        newdict = {}
+        for player in players.values():
+            if isinstance(player, PlayerElo):
+                dict = {
+                    "name": player.name,
+                    "eloratings": player.eloratings,
+                    "elomatches": player.elomatches,
+                }
+                newdict[player.id] = dict
+            else:
+                type_name = player.__class__.__name__
+                raise TypeError("Unexpected type {0}".format(type_name))
+        return newdict
+
+    @staticmethod
+    def serialize(ratings, filename="AllElo.json"):
+        newdict = {i: j.__dict__ for i, j in ratings.items()}
+        json.dump(newdict, open(filename, "w"), indent=2)
+
+    @staticmethod
+    def deserialize(filename="AllElo.json"):
+        try:
+            o = json.load(open(filename))
+            pe = {}
+            for k, v in o.items():
+                obj = PlayerElo("0", "0", 0)
+                obj.__dict__.update(v)
+                pe[int(k)] = obj
+            return pe
+        except:
+            return None
 
     @staticmethod
     def update_elos_matches(
@@ -185,9 +240,17 @@ class PlayerElo:
             initial_rating = PlayerElo.get_initial_rating(rank, isatp)
             player = PlayerElo(name, id, initial_rating)
             listplayers[id] = player
-            return player, player.get_latest_rating()[0], player.get_latest_rating()[1]
+            return (
+                player,
+                round(player.get_latest_rating()[0]),
+                player.get_latest_rating()[1],
+            )
         else:
-            return player, player.get_latest_rating()[0], player.get_latest_rating()[1]
+            return (
+                player,
+                round(player.get_latest_rating()[0]),
+                player.get_latest_rating()[1],
+            )
 
     @staticmethod
     def get_Kcoeff(nbmatches: int, roundid: int, is_slam: bool) -> float:
@@ -203,7 +266,7 @@ class PlayerElo:
         return coeffKplayer
 
     @staticmethod
-    def get_elo_value_from_rank(rank, isatp: bool) -> float:
+    def get_elo_value_from_rank(rank, isatp: bool) -> int:
         ranks_elo_min = ListRankEloATPMin
         values_elo_rank = values_elo_rankATP
         if not (isatp):
@@ -212,7 +275,7 @@ class PlayerElo:
 
         if rank < 1 or rank >= ranks_elo_min[0]:
             # init all players at this minimum value
-            return values_elo_rank[0]
+            return round(values_elo_rank[0])
         index = 0
         while rank < ranks_elo_min[index]:
             index += 1
@@ -228,10 +291,10 @@ class PlayerElo:
             valueEloIntervallMax * (intervalMin - rank)
             + valueEloIntervallMin * (rank - intervalMax)
         ) / (intervalMin - intervalMax)
-        return valueElo
+        return round(valueElo)
 
     @staticmethod
-    def get_initial_rating(rank: int, isatp: bool) -> float:
+    def get_initial_rating(rank: int, isatp: bool) -> int:
         return PlayerElo.get_elo_value_from_rank(rank, isatp)
 
     @staticmethod
@@ -250,7 +313,7 @@ class PlayerElo:
         aKcoeff1: float,
         aKcoeff2: float,
         is_player1won: bool,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[int, int]:
         proba_match2 = PlayerElo.get_match_proba(rating1, rating2)
         proba_match1 = PlayerElo.get_match_proba(rating2, rating1)
 
@@ -260,7 +323,7 @@ class PlayerElo:
         else:
             rating1 = rating1 + aKcoeff1 * (0 - proba_match1)
             rating2 = rating2 + aKcoeff2 * (1 - proba_match2)
-        return rating1, rating2
+        return round(rating1), round(rating2)
 
     @staticmethod
     def get_new_elo_ratings_match(
@@ -290,7 +353,7 @@ class PlayerElo:
         nbsets_won2: int,
         is_slam: bool,
         idround: int,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[int, int]:
         """
         no need to extra weight slams matches because it s already taking more weight in
         get_new_elo_ratings_match as it s more sets
@@ -316,7 +379,7 @@ class PlayerElo:
                 gainToRating2 + newratings[1] - rating2,
             )
 
-        return rating1 + gainToRating1, rating2 + gainToRating2
+        return round(rating1 + gainToRating1), round(rating2 + gainToRating2)
 
     @staticmethod
     def get_ranking(players: dict):
@@ -336,12 +399,19 @@ class PlayerElo:
             player = players[p]
             last_rating = player.get_latest_rating()
             if int(str(last_rating[2])[0:4]) >= year:
-                playerCopy = PlayerElo("", player.id, 0)
+                playerCopy = PlayerElo("", player.id, player.initialrating)
                 filtered_dict = {
-                    k: v for (k, v) in playerCopy.eloratings.items() if k < date
+                    k: v
+                    for (k, v) in player.eloratings.items()
+                    if int(str(k)[0:4]) == year
                 }
-
-                playerCopy.eloratings = playerCopy.eloratings
+                filtered_dict2 = {
+                    k: v
+                    for (k, v) in player.elomatches.items()
+                    if int(str(k)[0:4]) == year
+                }
+                playerCopy.eloratings = filtered_dict
+                playerCopy.elomatches = filtered_dict2
                 playersCopy[playerCopy.id] = playerCopy
-        playersandlastelo.sort(key=lambda x: x[1][0], reverse=True)
-        print(*playersandlastelo, sep="\n")
+        # playersCopy.sort(key=lambda x: x[1][0], reverse=True)
+        return playersCopy
