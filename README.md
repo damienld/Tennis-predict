@@ -9,12 +9,14 @@ Predict the outcome of ATP/WTA matches based on advanced features
 - Implement the ELO basic rating
 - Adapt it to Tennis
 - Extract it year by year to csv (to be used in another project)
+
 ToDo:
 - select which tournaments should be excluded (5 = DC / exclude CAT 6 = Exhib but "XXX (juniors)" / "Hopman Cup" / "Mubadala ..."
 - manage players long period out
 - manage new entrants
 - Test the different settings to find the most efficient one (KCoeffOpp, startingElo..)
-## 3 - Add extra features
+- 
+## 3 - Add extra features (ToDo)
 - Recent ELO
 - ELO Rating by Surface
 - Peak ELO with date
