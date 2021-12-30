@@ -11,6 +11,9 @@ python -m pip install matplotlib
 5 - pip freeze > requirements.txt
 
 Set up Black auto-formatting: https://dev.to/adamlombard/how-to-use-the-black-python-code-formatter-in-vscode-3lo0
+
+CTRL+SHIFT+0 to show objects
+then:   ":" to display by types
 """
 from datetime import date
 from os import stat
@@ -19,7 +22,7 @@ import pandas as pd
 import numpy as np
 from pandas.core.frame import DataFrame
 
-from elorating import *
+from ELO.elorating import PlayerElo, PlayersElo
 
 # LOAD DATA
 def get_data(is_atp: bool, yrstart=2013, yrend=2021) -> DataFrame:
@@ -39,18 +42,42 @@ def get_data(is_atp: bool, yrstart=2013, yrend=2021) -> DataFrame:
             (
                 r"https://raw.githubusercontent.com/damienld/Pro-Tennis-Analysis/main/Data/{0}{1}_all_matches.csv"
             ).format(name_tour, str(year)),
-            parse_dates=["Date"],
         )
-        # dfyear=pd.read_csv(("./Data/ATP{0}_all_matches.csv").format(str(year)), parse_dates = ['Date'])
+        # dfyear=pd.read_csv(("./Data/ATP{0}_all_matches.csv").format(str(year)))
+        dfyear.Date = pd.to_datetime(dfyear.Date, format="%d/%m/%y %H:%M:%S")
         dfMatches = pd.concat([dfMatches, dfyear], axis=0)
     # from 2 rows by match to only 1 row
+    dfMatches = dfMatches.drop(
+        [
+            "TrnSite",
+            "TrnSpeed",
+            "TrnSpeedNb",
+            "Round",
+            "Player",
+            "AceRatePlayer",
+            "Srv1PtsP1",
+            "Srv2PtsP1",
+            "Srv1PtsWonP1",
+            "Srv2PtsWonP1",
+            "StatusP1",
+            "StatusP2",
+            "AvgAceRateP",
+            "AvgAceRateOpp",
+            "AvgPtsWonServ",
+            "AvgPtsWonRetrnOpp",
+            "IsEnoughData3",
+            "IsValidData",
+        ],
+        axis=1,
+    )
     dfMatches = dfMatches[dfMatches["IndexP"] == 0]
     # sort by Date and Round to get the right order in case 2 matches played on the same day
     dfMatches = dfMatches.sort_values(by=["Date", "RoundId"], ascending=True)
     return dfMatches
 
 
-playersElo = PlayerElo.deserialize()
+playersElo: PlayersElo
+playersElo = PlayersElo.deserialize("./results/AllElo.json")
 if playersElo == None:
     isatp = True
     df = get_data(True, 2013, 2021)
@@ -60,9 +87,12 @@ if playersElo == None:
         df["Elo1"],
         df["nbElo1"],
         df["EloAfter1"],
+        df["DaysLastElo1"],
         df["Elo2"],
         df["nbElo2"],
         df["EloAfter2"],
+        df["DaysLastElo2"],
+        df["ProbaElo"],
     ) = zip(
         *df.apply(
             lambda row: PlayerElo.update_elos_matches(
@@ -86,15 +116,16 @@ if playersElo == None:
             axis=1,
         )
     )
-    df.to_csv("dfWithElos.csv")
-    PlayerElo.serialize(playersElo)
+    dfWithElos = df.to_csv("./results/dfWithElos.csv")
+    PlayersElo.serialize(playersElo, "./results/AllElo.json")
 
-PlayerElo.get_ranking(playersElo)
+dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
+PlayersElo.get_ranking(playersElo)
 # a = PlayerElo.to_dict(playersElo)
 """
 def save_elo(players: dict):
     with open("playersElo.json", "w") as fp:
         json.dump(a, fp, indent=2)
 """
-playersElo2021 = PlayerElo.filterplayersratings_byyear(playersElo, 2021)
-PlayerElo.serialize(playersElo2021, "Elo2021.json")
+playersElo2021 = PlayersElo.filterplayersratings_byyear(playersElo, 2021)
+# PlayerElo.serialize(playersElo2021, "Elo2021.json")
