@@ -22,6 +22,23 @@ ToDo:
 - Peak ELO with date
 - Cumulated Fatigue
 - H2H
-- ROI vs opponent category
+- ROI vs style of player
 - Trn history
 ..
+
+## 4 - Preprocessing
+- Standardization
+- Outliers
+
+## 5 - Compare Models
+- Split data train/validation/test
+- Fit
+- Cross Validation KFold
+- Hyperparameters tuning
+- ML
+- DL
+- Define a metric for evaluation (F1-score, raw ROI, ROi with Kelly staking..)
+
+## 6 - Test
+
+## 7 - Deploy
