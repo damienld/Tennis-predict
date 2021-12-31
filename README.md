@@ -8,7 +8,7 @@ Predict the outcome of ATP/WTA matches based on advanced features
 ## 2 - Build ELO ratings for each match
 - Implement the ELO basic rating
 - Adapt it to Tennis
-- Extract it year by year to csv (to be used in another project)
+- Export it year by year to csv (to be used in another project)
 - Filter tournaments that should be excluded (5 = DC / exclude CAT 6 = Exhib but keep "XXX (juniors)" / "Hopman Cup" / "Mubadala 
 
 ToDo:
