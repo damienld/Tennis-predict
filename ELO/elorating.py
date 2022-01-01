@@ -164,27 +164,37 @@ class PlayerElo:
         days_since_last_elo2 = -1
         eloadj2 = 0
         if isadj_for_out_period:
-            # only check out periods for players in top 100
-            # because others might have gone to lower level rather than
-            # really being out
-            if date_last_elo1 >= 0 and elo1 > 1600:
+            if date_last_elo1 >= 0:
                 date_last_elo1 = PlayersElo.get_datetime(date_last_elo1)
-                days_since_last_elo1 = calc_datediff_withoutoffseason(
-                    date_match, date_last_elo1
-                )
-                eloadj1 = PlayerElo.get_adjustment_elo_when_player_was_out(
-                    days_since_last_elo1
-                )
-                # elo1 = elo1 + eloadj1
-            if date_last_elo2 >= 0 and elo2 > 1600:
+                if elo1 > 1600:
+                    # only check out periods for players in top 100
+                    # because others might have gone to lower level rather than
+                    # really being out
+                    days_since_last_elo1 = calc_datediff_withoutoffseason(
+                        date_match, date_last_elo1
+                    )
+                    eloadj1 = PlayerElo.get_adjustment_elo_when_player_was_out(
+                        days_since_last_elo1
+                    )
+                    elo1 = elo1 + eloadj1
+                else:
+                    days_since_last_elo1 = max(0, (date_match - date_last_elo1).days)
+
+            if date_last_elo2 >= 0:
                 date_last_elo2 = PlayersElo.get_datetime(date_last_elo2)
-                days_since_last_elo2 = calc_datediff_withoutoffseason(
-                    date_match, date_last_elo2
-                )
-                eloadj2 = PlayerElo.get_adjustment_elo_when_player_was_out(
-                    days_since_last_elo2
-                )
-                # elo2 = elo2 + eloadj2
+                if elo2 > 1600:
+                    # only check out periods for players in top 100
+                    # because others might have gone to lower level rather than
+                    # really being out
+                    days_since_last_elo2 = calc_datediff_withoutoffseason(
+                        date_match, date_last_elo2
+                    )
+                    eloadj2 = PlayerElo.get_adjustment_elo_when_player_was_out(
+                        days_since_last_elo2
+                    )
+                    elo2 = elo2 + eloadj2
+                else:
+                    days_since_last_elo2 = max(0, (date_match - date_last_elo2).days)
         # init the 2 var in case not updated later
         elo1after = elo1
         elo2after = elo2

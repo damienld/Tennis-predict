@@ -117,7 +117,7 @@ if playersElo == None:
                 row["IsCompleted"],
                 isatp,
                 True,
-                False,
+                True,
             ),
             axis=1,
         )
@@ -129,6 +129,8 @@ if playersElo == None:
 dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
 # dont keep year 1 as it served to get elo stable rankings
 dfWithElos = dfWithElos[dfWithElos["Date"] > datetime(2013, 12, 10)]
+# dont predict/test under ATP level
+dfWithElos = dfWithElos[(dfWithElos["TrnRk"] >= 2) & (dfWithElos["TrnRk"] <= 5)]
 
 dfWithElos = calc_brier(dfWithElos, "IndexP", "ProbaElo")
 dfWithElos["Proba_odds"] = 1 / dfWithElos["Odds1"]
@@ -140,7 +142,7 @@ print("-----" + str(2014) + "-----")
 # PlayersElo.get_ranking(playersEloYr)
 
 print("Brier score for Elo " + str(dfWithElos["brier"].mean()))
-# 0.2186(set, adj_out) 0.2186(set, NO adj_out)
+# 0.2053(set, adj_out) 0.(set, NO adj_out)
 print("Brier score for Odds " + str(dfWithElos["brier_odds"].mean()))
 # 0.1885
 
