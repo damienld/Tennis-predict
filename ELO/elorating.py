@@ -5,59 +5,6 @@ from datetime import datetime
 import json
 from typing import Tuple
 
-ListRankEloATPMin = [450, 380, 300, 250, 200, 150, 100, 75, 50, 25, 15, 10, 1]
-values_elo_rankATP = [
-    1200,
-    1300,
-    1420,  # 300
-    1473,
-    1532,  # 200
-    1602,
-    1685,  # 100
-    1730,
-    1797,  # 50
-    1860,
-    1920,  # 15
-    1960,
-    2200,
-]
-ListRankEloWTAMin = [
-    700,
-    500,
-    450,
-    400,
-    350,
-    300,
-    250,
-    200,
-    150,
-    100,
-    75,
-    50,
-    25,
-    15,
-    10,
-    1,
-]
-values_elo_rankWTA = [
-    970,
-    1040,
-    1070,
-    1100,
-    1195,
-    1297,
-    1397,
-    1492,
-    1592,
-    1674,
-    1742,
-    1806,
-    1866,
-    1931,
-    1973,
-    2100,
-]
-
 
 class PlayerElo:
     """
@@ -156,7 +103,7 @@ class PlayerElo:
         nbsets_won2: int,
         trn_rk: int,
         idround: int,
-        date: datetime,
+        date_match: datetime,
         is_completed: bool,
         isatp: bool,
         issetbysetupdate: bool,
@@ -202,10 +149,17 @@ class PlayerElo:
         )
         days_since_last_elo1 = -1
         if date_last_elo1 >= 0:
-            days_since_last_elo1 = (date - PlayersElo.get_datetime(date_last_elo1)).days
+            date_last_elo1 = PlayersElo.get_datetime(date_last_elo1)
+            if date_match > datetime(
+                date_last_elo1.year, 11, 1
+            ) and date_last_elo1 < datetime(date_last_elo1.year, 12, 25):
+                days_to_remove = date_last_elo1 - datetime(date_last_elo1.year, 11, 1)
+            days_since_last_elo1 = max(0, (date_match - date_last_elo1).days)
+
         days_since_last_elo2 = -1
         if date_last_elo2 >= 0:
-            days_since_last_elo2 = (date - PlayersElo.get_datetime(date_last_elo2)).days
+            date_last_elo2 = PlayersElo.get_datetime(date_last_elo2)
+            days_since_last_elo2 = max(0, (date_match - date_last_elo2).days)
         elo1after = elo1
         elo2after = elo2
         proba_match1 = -1
@@ -236,8 +190,8 @@ class PlayerElo:
                     trn_rk == 4,
                     idround,
                 )
-            p1.add_rating(elo1after, date, nbelo1 + nbsets_won1 + nbsets_won2)
-            p2.add_rating(elo2after, date, nbelo2 + nbsets_won1 + nbsets_won2)
+            p1.add_rating(elo1after, date_match, nbelo1 + nbsets_won1 + nbsets_won2)
+            p2.add_rating(elo2after, date_match, nbelo2 + nbsets_won1 + nbsets_won2)
         print(row_name)
         print(
             elo1,
@@ -486,8 +440,8 @@ class PlayersElo:
         for p in players:
             player = players[p]
             last_rating = player.get_latest_rating()
-            if int(str(last_rating[2])[0:4]) >= 2020:
-                playersandlastelo.append((player.name, last_rating))
+            # if int(str(last_rating[2])[0:4]) >= 2020:
+            playersandlastelo.append((player.name, last_rating))
         playersandlastelo.sort(key=lambda x: x[1][0], reverse=False)
         print(*playersandlastelo, sep="\n")
         """"
@@ -554,7 +508,7 @@ class PlayersElo:
             player = players[p]
             last_rating = player.get_latest_rating()
             if int(str(last_rating[2])[0:4]) >= year:
-                playerCopy = PlayerElo("", player.id, player.initialrating)
+                playerCopy = PlayerElo(player.name, player.id, player.initialrating)
                 filtered_dict = {
                     k: v
                     for (k, v) in player.eloratings.items()
@@ -570,3 +524,60 @@ class PlayersElo:
                 playersCopy[playerCopy.id] = playerCopy
         # playersCopy.sort(key=lambda x: x[1][0], reverse=True)
         return playersCopy
+
+
+# constants
+DateStartOffSeason = (1, 12)
+DateEndOffSeason = (25, 12)
+ListRankEloATPMin = [450, 380, 300, 250, 200, 150, 100, 75, 50, 25, 15, 10, 1]
+values_elo_rankATP = [
+    1200,
+    1300,
+    1420,  # 300
+    1473,
+    1532,  # 200
+    1602,
+    1685,  # 100
+    1730,
+    1797,  # 50
+    1860,
+    1920,  # 15
+    1960,
+    2200,
+]
+ListRankEloWTAMin = [
+    700,
+    500,
+    450,
+    400,
+    350,
+    300,
+    250,
+    200,
+    150,
+    100,
+    75,
+    50,
+    25,
+    15,
+    10,
+    1,
+]
+values_elo_rankWTA = [
+    970,
+    1040,
+    1070,
+    1100,
+    1195,
+    1297,
+    1397,
+    1492,
+    1592,
+    1674,
+    1742,
+    1806,
+    1866,
+    1931,
+    1973,
+    2100,
+]
