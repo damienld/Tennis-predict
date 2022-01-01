@@ -24,10 +24,10 @@ import pandas as pd
 import numpy as np
 from pandas.core.frame import DataFrame
 from Analysis.brier_score import calc_brier
-from ELO.elorating import PlayerElo, PlayersElo
+from Elo.elorating import PlayerElo, PlayersElo
 
 # LOAD DATA
-def get_data(is_atp: bool, yrstart=2013, yrend=2021) -> DataFrame:
+def get_data(is_atp: bool, yrstart=2019, yrend=2021) -> DataFrame:
     """
     @param is_atp: True/False
     @param yrstart
@@ -117,30 +117,32 @@ if playersElo == None:
                 row["IsCompleted"],
                 isatp,
                 True,
+                False,
             ),
             axis=1,
         )
     )
-    df = calc_brier(df, "IndexP", "ProbaElo")
-    df = calc_brier(df, "IndexP", "ProbaElo")
     df.to_csv("./results/dfWithElos.csv")
     PlayersElo.serialize(playersElo, "./results/AllElo.json")
 
 
 dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
+# dont keep year 1 as it served to get elo stable rankings
+dfWithElos = dfWithElos[dfWithElos["Date"] > datetime(2013, 12, 10)]
+
+dfWithElos = calc_brier(dfWithElos, "IndexP", "ProbaElo")
 dfWithElos["Proba_odds"] = 1 / dfWithElos["Odds1"]
 dfWithElos = calc_brier(dfWithElos, "IndexP", "Proba_odds", "brier_odds")
-dfWithElos = dfWithElos[dfWithElos["IsCompleted"] == True]
 # PlayersElo.get_ranking(playersElo)
 
 print("-----" + str(2014) + "-----")
 # playersEloYr = PlayersElo.filterplayersratings_byyear(playersElo, 2014)
 # PlayersElo.get_ranking(playersEloYr)
 
-# dont keep year 1 as it served to get elo stable rankings
-dfWithElos = dfWithElos[dfWithElos["Date"] > datetime(2013, 12, 10)]
 print("Brier score for Elo " + str(dfWithElos["brier"].mean()))
+# 0.2186(set, adj_out) 0.2186(set, NO adj_out)
 print("Brier score for Odds " + str(dfWithElos["brier_odds"].mean()))
+# 0.1885
 
 # keep only out periods
 # be careful an out period is not strictly given by DaysSinceLastElo

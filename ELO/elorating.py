@@ -4,6 +4,7 @@
 from datetime import datetime
 import json
 from typing import Tuple
+from Tennis.tennis_common import calc_datediff_withoutoffseason
 
 
 class PlayerElo:
@@ -57,6 +58,16 @@ class PlayerElo:
                 max_date,
             )
     """
+    MinDayForOutPeriod = 55
+
+    @staticmethod
+    def get_adjustment_elo_when_player_was_out(nr_days_out: int) -> float:
+        if nr_days_out >= PlayerElo.MinDayForOutPeriod:
+            # val = -0.01 * nr_days_out ** 2 + 2.73 * nr_days_out - 25.45
+            val = 10 * nr_days_out / 39 + 3350 / 39
+            return max(-150, -val)
+        else:
+            return 0
 
     def add_rating(
         self, newrating: int, date: datetime, nr_matches_to_set: int
@@ -107,6 +118,7 @@ class PlayerElo:
         is_completed: bool,
         isatp: bool,
         issetbysetupdate: bool,
+        isadj_for_out_period: bool,
     ):
         """[summary]
 
@@ -148,18 +160,32 @@ class PlayerElo:
             players, name2, id2, rank2, isatp
         )
         days_since_last_elo1 = -1
-        if date_last_elo1 >= 0:
-            date_last_elo1 = PlayersElo.get_datetime(date_last_elo1)
-            if date_match > datetime(
-                date_last_elo1.year, 11, 1
-            ) and date_last_elo1 < datetime(date_last_elo1.year, 12, 25):
-                days_to_remove = date_last_elo1 - datetime(date_last_elo1.year, 11, 1)
-            days_since_last_elo1 = max(0, (date_match - date_last_elo1).days)
-
+        eloadj1 = 0
         days_since_last_elo2 = -1
-        if date_last_elo2 >= 0:
-            date_last_elo2 = PlayersElo.get_datetime(date_last_elo2)
-            days_since_last_elo2 = max(0, (date_match - date_last_elo2).days)
+        eloadj2 = 0
+        if isadj_for_out_period:
+            # only check out periods for players in top 100
+            # because others might have gone to lower level rather than
+            # really being out
+            if date_last_elo1 >= 0 and elo1 > 1600:
+                date_last_elo1 = PlayersElo.get_datetime(date_last_elo1)
+                days_since_last_elo1 = calc_datediff_withoutoffseason(
+                    date_match, date_last_elo1
+                )
+                eloadj1 = PlayerElo.get_adjustment_elo_when_player_was_out(
+                    days_since_last_elo1
+                )
+                # elo1 = elo1 + eloadj1
+            if date_last_elo2 >= 0 and elo2 > 1600:
+                date_last_elo2 = PlayersElo.get_datetime(date_last_elo2)
+                days_since_last_elo2 = calc_datediff_withoutoffseason(
+                    date_match, date_last_elo2
+                )
+                eloadj2 = PlayerElo.get_adjustment_elo_when_player_was_out(
+                    days_since_last_elo2
+                )
+                # elo2 = elo2 + eloadj2
+        # init the 2 var in case not updated later
         elo1after = elo1
         elo2after = elo2
         proba_match1 = -1
@@ -217,7 +243,7 @@ class PlayerElo:
         )
 
     @staticmethod
-    def __get_new_elo_ratings(
+    def get_new_elo_ratings(
         rating1: float,
         rating2: float,
         aKcoeff1: float,
@@ -255,7 +281,7 @@ class PlayerElo:
         coeffKB = PlayerElo.get_Kcoeff(
             nbmatches2, nbmatches1, days_since_last_elo2, idround, is_slam
         )
-        return PlayerElo.__get_new_elo_ratings(
+        return PlayerElo.get_new_elo_ratings(
             rating1, rating2, coeffKA, coeffKB, is_player1_won
         )
 
@@ -527,8 +553,6 @@ class PlayersElo:
 
 
 # constants
-DateStartOffSeason = (1, 12)
-DateEndOffSeason = (25, 12)
 ListRankEloATPMin = [450, 380, 300, 250, 200, 150, 100, 75, 50, 25, 15, 10, 1]
 values_elo_rankATP = [
     1200,

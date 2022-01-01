@@ -1,3 +1,12 @@
 
 *.pyc
 tennis-predict_venv/
+results/AllElo.json
+results/dfWithElos.csv
+results/dfWithElos.xlsx
+results/match/AllElo.json
+results/match/dfWithElos.csv
+results/set_by_set/AllElo.json
+results/set_by_set/dfWithElos.csv
+results/set_by_set_AND_adj_out/AllElo.json
+results/set_by_set_AND_adj_out/dfWithElos.csv

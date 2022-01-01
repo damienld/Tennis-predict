@@ -4,7 +4,7 @@ Launch all test_*.py by launching
 > pytest 
 """
 from datetime import datetime, timedelta
-from ELO.elorating import PlayerElo
+from Elo.elorating import PlayerElo
 
 
 def test_get_latest_rating_1():
@@ -40,5 +40,26 @@ def test_getKcoeff_3():
 
 
 def test___get_new_elo_ratings_1():
-    res = PlayerElo.__get_new_elo_ratings(1429, 1672, 131, 25, False)
-    assert round(res[0]) == 1429 and round(res[1]) == 1672
+    res = PlayerElo.get_new_elo_ratings(1429, 1672, 131, 25, False)
+    assert round(res[0]) == 1403 and round(res[1]) == 1677
+
+
+class Test_get_adjustment_elo_when_player_was_out:
+    def test_get_adjustment_elo_when_player_was_out_1(self):
+        assert PlayerElo.get_adjustment_elo_when_player_was_out(50) == 0
+
+    def test_get_adjustment_elo_when_player_was_out_2(self):
+        res = PlayerElo.get_adjustment_elo_when_player_was_out(55)
+        assert res == -100
+
+    def test_get_adjustment_elo_when_player_was_out_5(self):
+        res = PlayerElo.get_adjustment_elo_when_player_was_out(100)
+        assert -100 >= res >= -115
+
+    def test_get_adjustment_elo_when_player_was_out_3(self):
+        res = PlayerElo.get_adjustment_elo_when_player_was_out(250)
+        assert res == -150
+
+    def test_get_adjustment_elo_when_player_was_out_4(self):
+        res = PlayerElo.get_adjustment_elo_when_player_was_out(500)
+        assert res == -150
