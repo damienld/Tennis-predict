@@ -12,16 +12,18 @@ python -m pip install matplotlib
 
 Set up Black auto-formatting: https://dev.to/adamlombard/how-to-use-the-black-python-code-formatter-in-vscode-3lo0
 
+Auto activate venv https://stackoverflow.com/questions/58433333/auto-activate-virtual-environment-in-visual-studio-code
+
 CTRL+SHIFT+0 to show objects
 then:   ":" to display by types
 """
-from datetime import date
+from datetime import date, datetime
 from os import stat
 import json
 import pandas as pd
 import numpy as np
 from pandas.core.frame import DataFrame
-
+from Analysis.brier_score import calc_brier
 from ELO.elorating import PlayerElo, PlayersElo
 
 # LOAD DATA
@@ -83,7 +85,7 @@ playersElo: PlayersElo
 playersElo = PlayersElo.deserialize("./results/AllElo.json")
 if playersElo == None:
     isatp = True
-    df = get_data(True, 2019, 2021)
+    df = get_data(True, 2013, 2021)
     playersElo = {}
 
     (
@@ -119,16 +121,38 @@ if playersElo == None:
             axis=1,
         )
     )
-    dfWithElos = df.to_csv("./results/dfWithElos.csv")
+    df = calc_brier(df, "IndexP", "ProbaElo")
+    df = calc_brier(df, "IndexP", "ProbaElo")
+    df.to_csv("./results/dfWithElos.csv")
     PlayersElo.serialize(playersElo, "./results/AllElo.json")
 
+
 dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
-PlayersElo.get_ranking(playersElo)
-# a = PlayerElo.to_dict(playersElo)
-"""
-def save_elo(players: dict):
-    with open("playersElo.json", "w") as fp:
-        json.dump(a, fp, indent=2)
-"""
-playersElo2021 = PlayersElo.filterplayersratings_byyear(playersElo, 2021)
-# PlayerElo.serialize(playersElo2021, "Elo2021.json")
+dfWithElos["Proba_odds"] = 1 / dfWithElos["Odds1"]
+dfWithElos = calc_brier(dfWithElos, "IndexP", "Proba_odds", "brier_odds")
+dfWithElos = dfWithElos[dfWithElos["IsCompleted"] == True]
+# PlayersElo.get_ranking(playersElo)
+
+print("-----" + str(2014) + "-----")
+# playersEloYr = PlayersElo.filterplayersratings_byyear(playersElo, 2014)
+# PlayersElo.get_ranking(playersEloYr)
+
+# dont keep year 1 as it served to get elo stable rankings
+dfWithElos = dfWithElos[dfWithElos["Date"] > datetime(2013, 12, 10)]
+print("Brier score for Elo " + str(dfWithElos["brier"].mean()))
+print("Brier score for Odds " + str(dfWithElos["brier_odds"].mean()))
+
+# keep only out periods
+# be careful an out period is not strictly given by DaysSinceLastElo
+# because the players might have played at a lower level
+# hence let s look just for 100 players who rarely play at lower levels (itf<25k)
+dfOutPeriods = dfWithElos[
+    (dfWithElos["DaysLastElo2"] > 50) & (dfWithElos["Rk2"] <= 100)
+]
+print(dfOutPeriods["brier"].mean())
+dfOutPeriods = dfOutPeriods[dfOutPeriods["DaysLastElo2"] > 100]
+print(dfOutPeriods["brier"].mean())
+dfOutPeriods = dfOutPeriods[dfOutPeriods["DaysLastElo2"] > 150]
+print(dfOutPeriods["brier"].mean())
+dfOutPeriods = dfOutPeriods[dfOutPeriods["DaysLastElo2"] > 250]
+print(dfOutPeriods["brier"].mean())
