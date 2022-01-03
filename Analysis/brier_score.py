@@ -1,5 +1,5 @@
 import pandas as pd
-from pandas.core.frame import DataFrame
+from pandas import DataFrame
 
 def apply_brier(col_result: int, col_prediction: float):
     if col_prediction <= 0 or col_prediction >= 1:
@@ -15,7 +15,7 @@ def apply_brier(col_result: int, col_prediction: float):
             return 0 
     
 def calc_brier(df: DataFrame, col_result: str, col_prediction: str, newcolname: str="brier")->DataFrame:
-    """[summary]
+    """The Brier score is calculated by comparing the gap between the prediction and the actual result
 
     Args:
         df (DataFrame): Will be used to get columns data and will be returned with the new column @newcolname
@@ -24,7 +24,7 @@ def calc_brier(df: DataFrame, col_result: str, col_prediction: str, newcolname: 
         newcolname (str, optional): Name fo the columns to input the result. Defaults to "brier".
 
     Returns:
-        DataFrame: with the new column
+        DataFrame: with the new column "brier"
     """
     df[newcolname] = df.apply(lambda row: apply_brier(row[col_result], row[col_prediction]), axis=1)
     return df

@@ -4,19 +4,20 @@ Launch all test_*.py by launching
 > pytest 
 """
 from datetime import datetime, timedelta
-from Elo.elorating import PlayerElo
+from elo.elorating import PlayerElo
 
 
 def test_get_latest_rating_1():
     p: PlayerElo
-    p = PlayerElo("name1", "1", 1500)
+    p = PlayerElo("name1", "1")
     res = PlayerElo.get_latest_rating(p)
-    assert res == (1500, 0, -1)
+    assert res == (PlayerElo.elo_initialrating, 0, -1)
 
 
 def test_get_latest_rating_2():
+    # work for PlayerElo.elo_initialrating=1500
     p: PlayerElo
-    p = PlayerElo("name1", "1", 1500)
+    p = PlayerElo("name1", "1")
     p.add_rating(1550, datetime(2020, 10, 10), 2)
     nbmatches = PlayerElo.get_latest_rating(p)[1]
     p.add_rating(1750, datetime(2020, 10, 20), nbmatches + 3)
@@ -40,7 +41,7 @@ def test_getKcoeff_3():
 
 
 def test___get_new_elo_ratings_1():
-    res = PlayerElo.get_new_elo_ratings(1429, 1672, 131, 25, False)
+    res = PlayerElo._PlayerElo__get_new_elo_ratings(1429, 1672, 131, 25, False)
     assert round(res[0]) == 1403 and round(res[1]) == 1677
 
 

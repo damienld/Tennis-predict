@@ -1,16 +1,18 @@
 from datetime import datetime
+from collections import namedtuple
 
-DateStartOffSeason = (1, 11)  # 01/11
-DateEndOffSeason = (20, 12)  # 20/12
+DateDayMonth = namedtuple("DateMonthYear", ["day", "month"])
+DateStartOffSeason = DateDayMonth(1, 11)  # 01/11
+DateEndOffSeason = DateDayMonth(20, 12)  # 20/12
 MaxDaysOffSeasonToCheck = 30
 
 
 def calc_datediff_withoutoffseason(date_new: datetime, date_last: datetime) -> int:
     date_endoffseason = datetime(
-        date_last.year, DateEndOffSeason[1], DateEndOffSeason[0]
+        date_last.year, DateEndOffSeason.month, DateEndOffSeason.day
     )
     date_startoffseason = datetime(
-        date_last.year, DateStartOffSeason[1], DateStartOffSeason[0]
+        date_last.year, DateStartOffSeason.month, DateStartOffSeason.day
     )
 
     if date_new > date_startoffseason and date_last < date_endoffseason:

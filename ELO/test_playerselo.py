@@ -4,7 +4,7 @@ Launch all test_*.py by launching
 > pytest 
 """
 from datetime import datetime
-from Elo.elorating import PlayersElo
+from elo.elorating import PlayersElo
 
 
 def test_get_datetime():

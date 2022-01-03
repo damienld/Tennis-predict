@@ -17,22 +17,28 @@ Auto activate venv https://stackoverflow.com/questions/58433333/auto-activate-vi
 CTRL+SHIFT+0 to show objects
 then:   ":" to display by types
 """
-from datetime import date, datetime
-from os import stat
+from datetime import datetime
 import json
 import pandas as pd
 import numpy as np
-from pandas.core.frame import DataFrame
-from Analysis.brier_score import calc_brier
-from Elo.elorating import PlayerElo, PlayersElo
+from pandas import DataFrame
+from analysis.brier_score import calc_brier
+from analysis.out_periods_elo import analyse_out_periods_predictions
+from elo.elorating import PlayerElo, PlayersElo
+from analysis.roi import calc_roi
 
 # LOAD DATA
 def get_data(is_atp: bool, yrstart=2019, yrend=2021) -> DataFrame:
     """
-    @param is_atp: True/False
-    @param yrstart
-    @param yrend
-    Returns a DataFrame with all matches ordered by date and round
+    Args:
+        is_atp (bool):
+        yrstart (int, optional): Defaults to 2019.
+        yrend (int, optional): Defaults to 2021.
+
+    Returns:
+        DataFrame: a global dataframe aggregating all matches with 1 row per match
+        Ordered by date/round ascending
+        Exluding Exhibitions (except Hopman, Mubadala, juniors)
     """
     if is_atp:
         name_tour = "ATP"
@@ -48,7 +54,7 @@ def get_data(is_atp: bool, yrstart=2019, yrend=2021) -> DataFrame:
         # dfyear=pd.read_csv(("./Data/ATP{0}_all_matches.csv").format(str(year)))
         dfyear.Date = pd.to_datetime(dfyear.Date, format="%d/%m/%y %H:%M:%S")
         dfMatches = pd.concat([dfMatches, dfyear], axis=0)
-    # from 2 rows by match to only 1 row
+    # drop useless rows
     dfMatches = dfMatches.drop(
         [
             "TrnSite",
@@ -72,21 +78,22 @@ def get_data(is_atp: bool, yrstart=2019, yrend=2021) -> DataFrame:
         ],
         axis=1,
     )
+    # from 2 rows by match to only 1 row
     dfMatches = dfMatches[dfMatches["IndexP"] == 0]
-    # sort by Date and Round to get the right order in case 2 matches played on the same day
+    # sort by Date and Rounds to get the right order in case 2 matches played on the same day
     dfMatches = dfMatches.sort_values(by=["Date", "RoundId"], ascending=True)
-    # filter Tournaments
+    # filter Tournaments to exclude non relevant ones
     queryTrn = "( TrnRk <= 5 | Trn.str.startswith('Hopman') | Trn.str.startswith('Mubadala') | Trn.str.find('(juniors)')>0 )"
     dfMatches = dfMatches.query(queryTrn)
     return dfMatches
 
 
-playersElo: PlayersElo
 playersElo = PlayersElo.deserialize("./results/AllElo.json")
 if playersElo == None:
+    playersElo: PlayersElo = {}
+    # create/build the matches and elo files
     isatp = True
-    df = get_data(True, 2013, 2021)
-    playersElo = {}
+    df = get_data(isatp, 2013, 2021)
 
     (
         df["Elo1"],
@@ -122,41 +129,46 @@ if playersElo == None:
             axis=1,
         )
     )
+    # save a dataframe with all matches and Elo rating of each player for the matches
     df.to_csv("./results/dfWithElos.csv")
+    # save the historical rating for each player
     PlayersElo.serialize(playersElo, "./results/AllElo.json")
 
 
 dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
-# dont keep year 1 as it served to get elo stable rankings
+# dont keep year 1 as it served to make elo stable rankings
 dfWithElos = dfWithElos[dfWithElos["Date"] > datetime(2013, 12, 10)]
-# dont predict/test under ATP level
-dfWithElos = dfWithElos[(dfWithElos["TrnRk"] >= 2) & (dfWithElos["TrnRk"] <= 5)]
+# dont predict/test at lower levels ( ATP level only) andR1+
+dfWithElos = dfWithElos[
+    (dfWithElos["TrnRk"] >= 2)
+    & (dfWithElos["TrnRk"] <= 5)
+    & (dfWithElos["nbElo1"] >= 50)  # need X sets to trust Elo rating
+    & (dfWithElos["nbElo2"] >= 50)
+]
 
 dfWithElos = calc_brier(dfWithElos, "IndexP", "ProbaElo")
 dfWithElos["Proba_odds"] = 1 / dfWithElos["Odds1"]
 dfWithElos = calc_brier(dfWithElos, "IndexP", "Proba_odds", "brier_odds")
+dfWithElos = calc_roi(dfWithElos, "Odds1", "Odds2", "IndexP", "ProbaElo")
+dfWithElos.to_csv("./results/predictions.csv")
 # PlayersElo.get_ranking(playersElo)
 
-print("-----" + str(2014) + "-----")
-# playersEloYr = PlayersElo.filterplayersratings_byyear(playersElo, 2014)
-# PlayersElo.get_ranking(playersEloYr)
+print("-----" + str(2021) + "-----")
+playersEloYr = PlayersElo.filterplayersratings_byyear(playersElo, 2021)
+PlayersElo.get_ranking(playersEloYr)
 
 print("Brier score for Elo " + str(dfWithElos["brier"].mean()))
 # 0.2053(set, adj_out) 0.(set, NO adj_out)
 print("Brier score for Odds " + str(dfWithElos["brier_odds"].mean()))
 # 0.1885
+sumROI_stake = dfWithElos["stake_roi1"].sum()
+sumROI_profit = dfWithElos["pnl_roi1"].sum()
+roi = 100 * round(sumROI_profit / sumROI_stake, 3)
+print(
+    "Roi(Kelly) for Elo: stake={} Profit={} => ROI={} %".format(
+        str(sumROI_stake), str(sumROI_profit), str(roi)
+    ),
+)
+# 0.2053(set, adj_out) 0.(set, NO adj_out)
 
-# keep only out periods
-# be careful an out period is not strictly given by DaysSinceLastElo
-# because the players might have played at a lower level
-# hence let s look just for 100 players who rarely play at lower levels (itf<25k)
-dfOutPeriods = dfWithElos[
-    (dfWithElos["DaysLastElo2"] > 50) & (dfWithElos["Rk2"] <= 100)
-]
-print(dfOutPeriods["brier"].mean())
-dfOutPeriods = dfOutPeriods[dfOutPeriods["DaysLastElo2"] > 100]
-print(dfOutPeriods["brier"].mean())
-dfOutPeriods = dfOutPeriods[dfOutPeriods["DaysLastElo2"] > 150]
-print(dfOutPeriods["brier"].mean())
-dfOutPeriods = dfOutPeriods[dfOutPeriods["DaysLastElo2"] > 250]
-print(dfOutPeriods["brier"].mean())
+analyse_out_periods_predictions(dfWithElos)
