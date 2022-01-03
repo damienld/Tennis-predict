@@ -82,7 +82,8 @@ We evaluate the difference between our prediction and the actual result:
 ## 8 - Deploy
 
 
-loaded CSV contain the following:
+The loaded CSV contain the following:
+    
     - Date: Date of the match
     - TrnId: If of tournament
     - Trn: Name of tournament
