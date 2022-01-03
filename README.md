@@ -50,7 +50,9 @@ It is applied on ATP date (TrnRk>=2 from 2014 onwards)
 We evaluate the difference between our prediction and the actual result:
 - Brier score for Elo 0.2055
 - Brier score for Odds 0.1878 (caclulated by using bookmaker odds)
-
+We also calculate the ROI if we were betting every time our probability was quite different from the offered odds
+- Applying Kelly criterion: 15*( (odds - 1) * myproba - (1 - myproba)) / (odds - 1) which gives for example 1 unit for 50% at 2.16 (2u for 40% at 3.24 ..) 
+- ROI model 1 = 
 ## 4 - Add extra features (ToDo)
 - ELO Rating by Surface (Clay vs NonClay)
 - Recent ELO
@@ -68,7 +70,7 @@ We evaluate the difference between our prediction and the actual result:
 - Standardization
 - Outliers
 
-## 6 - Compare Models
+## 6 - Comparing Models
 - Split data train/validation/test
 - Fit
 - Cross Validation KFold
