@@ -2,7 +2,7 @@
 Predict the outcome of ATP/WTA matches based on advanced features
 
 ## 1 - Collect Data from OnCourt SQL Db
-- The data is collected from the model object developped in C# and extracted as CSV. (**ToDo**: directly read/load SQL from this project without the C# transition)
+- The data is collected from the MS Access Db provided with OnCourt software throught the model object developped in C# and extracted as CSV. (**ToDo**: directly read/load SQL from this project without the C# transition)
 - The CSV are loaded year by year and contain the list of all matches with match/player/tournament info:
     - Date: Date fo the match
     - TrnId: If of tournament
@@ -34,10 +34,18 @@ Predict the outcome of ATP/WTA matches based on advanced features
     - Age1
     - Age2
 - The global dataframe is a concatenation of all the yearly csv with all matches
-- The CSV actually contains 2 rows per match, one for each player, we will only keep one
+- The CSV actually contains 2 rows per match, one for each player, we will only keep one row per match
 
 ## 2 - Build ELO ratings for each match
-- Implement the ELO basic rating
+- Implement the ELO basic rating (elorating.py)
+    - **PlayerElo** object will represent a player with his historical Elo rating after each match, it contains 2 dictionnaries:
+        - eloratings: {date*: new ELO rating after this date}
+        - elomatches: {date*: number of matches compiled for the ELO rating}
+        - The date is defined as a string "YYYYMMDDn" where n is the index of the match for that day (as a player can play several matches in a day sometimes). This format easily allowed to sort/access the ratings.   
+        - The first date is set to -1
+    - **initial rating**: we had 2 choices here (2nd one was selected after trying both)
+        - turn the official current ATP ranking of the player into an ELO estimation for this rank (a rough mapping was done)
+        - start everyone at the same level and ignore the first year as it will be calibrating the ELO of each player
 - Adapt it to Tennis
 - Export it year by year to csv (to be used in another project)
 - Filter tournaments that should be excluded (5 = DC / exclude CAT 6 = Exhib but keep "XXX (juniors)" / "Hopman Cup" / "Mubadala 
