@@ -20,6 +20,8 @@ Predict the outcome of ATP/WTA matches based on advanced features
     ..
 - The global dataframe is a concatenation of all the yearly csv with all matches
 - The CSV actually contains 2 rows per match, one for each player, we will only keep one row per match
+- Some tournaments are not taken into account (exclude TrnRk=6 (Exhib) but keep "XXX (juniors)" / "Hopman Cup" / "Mubadala) 
+
 
 ## 2 - Build ELO ratings for each match
 - Implement the ELO basic rating (elorating.py) and some useful function to use it
@@ -32,12 +34,16 @@ Predict the outcome of ATP/WTA matches based on advanced features
         - turn the official current ATP ranking of the player into an ELO estimation for this rank (a rough mapping was done)
         - start everyone at the same level and ignore the first year as it will be calibrating the ELO of each player
 - Adapt it to Tennis
-- Export it year by year to csv (to be used in another project)
-- Filter tournaments that should be excluded (5 = DC / exclude CAT 6 = Exhib but keep "XXX (juniors)" / "Hopman Cup" / "Mubadala 
-- manage players long period out
+    - K-Factor is implemented followng this article  
+        - coeffKplayer = aCoeffK * 250 / ((nbmatches + 5) ** 0.4) (as per https://fivethirtyeight.com/features/serena-williams-and-the-difference-between-all-time-great-and-greatest-of-all-time/)
+        - also it takes into account the round and tournament importance
+        - additionnally if the ELO of the opponent is not really defined yet (less than 50 matches) K factor is largely decreased (as the opp's ELO rating can't be trusted)     
+    - Management of players long periods out
+        - 55 days out => Elo-100. 250 => Elo-150 (as per http://www.tennisabstract.com/blog/2018/05/15/handling-injuries-and-absences-with-tennis-elo/ )
+        - but don't count tennis offseason (or covid suspension) when Tour is actually off (as it's not due to an injury/decision)
+- Elo ratings history by players (JSON) must be Exportable year by year to csv (to be used in another project)
 
 ToDo:
-- manage new entrants
 - Test the different settings to find the most efficient one (KCoeffOpp, startingElo..)
 - 
 ## 3 - Add extra features (ToDo)
