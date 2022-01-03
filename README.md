@@ -43,25 +43,32 @@ Predict the outcome of ATP/WTA matches based on advanced features
         - but don't count tennis offseason (or covid suspension) when Tour is actually off (as it's not due to an injury/decision)
 - Elo ratings history by players (JSON) must be Exportable year by year to csv (to be used in another project)
 
-ToDo:
-- Test the different settings to find the most efficient one (KCoeffOpp, startingElo..)
-- 
-## 3 - Add extra features (ToDo)
+
+## 3 - First model
+The first model is done by just using the ELO rating defined above.
+It is applied on ATP date (TrnRk>=2 from 2014 onwards)
+We evaluate the difference between our prediction and the actual result:
+- Brier score for Elo 0.2055
+- Brier score for Odds 0.1878 (caclulated by using bookmaker odds)
+
+## 4 - Add extra features (ToDo)
+- ELO Rating by Surface (Clay vs NonClay)
 - Recent ELO
-- Elo depending on score gap
-- ELO Rating by Surface
 - Peak ELO with date
+- update not just the Elo rating when managing long periods out BUT also the K-Factor as there is more doubt about that value
+- Test the different settings to find the most efficient one (KCoeffOpp, startingElo, KFactor when player out..)
+- Elo depending on score gap
 - Cumulated Fatigue
 - H2H
 - ROI vs style of player
 - Trn history
 ..
 
-## 4 - Preprocessing
+## 5 - Preprocessing
 - Standardization
 - Outliers
 
-## 5 - Compare Models
+## 6 - Compare Models
 - Split data train/validation/test
 - Fit
 - Cross Validation KFold
@@ -70,9 +77,9 @@ ToDo:
 - DL
 - Define a metric for evaluation (F1-score, raw ROI, ROi with Kelly staking..)
 
-## 6 - Test
+## 7 - Test
 
-## 7 - Deploy
+## 8 - Deploy
 
 
 loaded CSV contain the following:
