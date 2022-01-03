@@ -52,10 +52,10 @@ We evaluate the difference between our prediction and the actual result:
 - Brier score for Odds 0.1878 (caclulated by using bookmaker odds)
 We also calculate the ROI if we were betting every time our probability was quite different from the offered odds
 - Applying Kelly criterion: 15*( (odds - 1) * myproba - (1 - myproba)) / (odds - 1) which gives for example 1 unit for 50% at 2.16 (2u for 40% at 3.24 ..) 
-- ROI model 1 = -7.9%
+- ROI model 1 = -5.9%
 
 ## 4 - Add extra features (ToDo)
-- ELO Rating by Surface (Clay vs NonClay)
+- ELO Rating by Surface (Clay and NonClay)
 - Recent ELO
 - Peak ELO with date
 - update not just the Elo rating when managing long periods out BUT also the K-Factor as there is more doubt about that value
