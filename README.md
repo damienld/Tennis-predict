@@ -64,6 +64,11 @@ We also calculate the ROI if we were betting every time our probability was quit
 - Applying Kelly criterion: 15*( (odds - 1) * myproba - (1 - myproba)) / (odds - 1) which gives for example 1 unit for 50% at 2.16 (2u for 40% at 3.24 ..) 
 - ROI model 1 = -5.9%
 
+Eventually, we compare the accuracy of the following methods to predict the match winner:
+- best ATP ranking
+- best ELO rating
+- best odds
+![](https://github.com/damienld/Tennis-predict/blob/main/img/readme/accuracy_by_methods_1.png)<br>
 ## 4 - Add extra features (ToDo)
 - ELO Rating by Surface (Clay and NonClay)
 - Recent ELO
