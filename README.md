@@ -53,18 +53,18 @@ Elo’s K-factor **determines how quickly the rating reacts to new game results*
 - Elo ratings history by players (JSON) must be Exportable year by year to csv (to be used in another project)
 
 
-## 3 - First model
-The first model is done by just using the ELO rating defined above.
+## 3 - First model - ELO1
+The first model is done by just using the **ELO rating** defined above.
 It is applied on ATP date (TrnRk>=2 from 2014 onwards)
 We evaluate the difference between our prediction and the actual result:
-- Brier score for Elo 0.2055
+- **Brier score for Elo 0.2055**
 - Brier score for Odds 0.1878 (caclulated by using bookmaker odds)
 
 We also calculate the ROI if we were betting every time our probability was quite different from the offered odds
 - Applying Kelly criterion: 15*( (odds - 1) * myproba - (1 - myproba)) / (odds - 1) which gives for example 1 unit for 50% at 2.16 (2u for 40% at 3.24 ..) 
-- ROI model 1 = -5.9%
+- **ROI model ELO1 = -5.9%**
 
-Eventually, we compare the accuracy of the following methods to predict the match winner:
+Eventually, we compare the **accuracy of the following methods** to predict the **match winner**:
 - best ATP ranking
 - best ELO rating
 - best odds
