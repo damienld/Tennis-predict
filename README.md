@@ -24,6 +24,12 @@ Predict the outcome of ATP/WTA matches based on advanced features
 
 
 ## 2 - Build ELO ratings for each match
+ELO rating (Wikpedia):
+The difference in the ratings between two players serves as a predictor of the outcome of a match. Two players with equal ratings who play against each other are expected to score an equal number of wins. A player whose rating is 100 points greater than their opponent's is expected to score 64%; if the difference is 200 points, then the expected score for the stronger player is 76%.
+
+A player's Elo rating is represented by a number which may change depending on the outcome of rated games played. 
+After every game, the winning player takes points from the losing one. The difference between the ratings of the winner and loser determines the total number of points gained or lost after a game. If the higher-rated player wins, then only a few rating points will be taken from the lower-rated player. However, if the lower-rated player scores an upset win, many rating points will be transferred. The lower-rated player will also gain a few points from the higher rated player in the event of a draw. This means that this rating system is self-correcting. Players whose ratings are too low or too high should, in the long run, do better or worse correspondingly than the rating system predicts and thus gain or lose rating points until the ratings reflect their true playing strength.
+
 - Implement the ELO basic rating (elorating.py) and some useful function to use it
     - **PlayerElo** object will represent a player with his historical Elo rating after each match, it contains 2 dictionnaries:
         - eloratings: {date*: new ELO rating after this date}
