@@ -609,7 +609,7 @@ class PlayersElo:
         return datetime.strptime(str(myelodate)[:-1], "%Y%m%d")
 
     @staticmethod
-    def get_ranking(players: dict):
+    def get_latest_ranking_year(players: dict):
         playersandlastelo = []
         for p in players:
             player = players[p]
