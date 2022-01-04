@@ -25,7 +25,7 @@ from pandas import DataFrame
 from analysis.brier_score import calc_brier
 from analysis.out_periods_elo import analyse_out_periods_predictions
 from elo.elorating import PlayerElo, PlayersElo
-from analysis.roi import calc_roi
+from analysis.analysis import analyse_predictions
 
 # LOAD DATA
 def get_data(is_atp: bool, yrstart=2019, yrend=2021) -> DataFrame:
@@ -136,39 +136,20 @@ if playersElo == None:
 
 
 dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
+print("-----" + str(2021) + "-----")
+playersEloYr = PlayersElo.filterplayersratings_byyear(playersElo, 2021)
+PlayersElo.get_latest_ranking_year(playersEloYr)
 # dont keep year 1 as it served to make elo stable rankings
 dfWithElos = dfWithElos[dfWithElos["Date"] > datetime(2013, 12, 10)]
 # dont predict/test at lower levels ( ATP level only) andR1+
 dfWithElos = dfWithElos[
     (dfWithElos["TrnRk"] >= 2)
     & (dfWithElos["TrnRk"] <= 5)
-    & (dfWithElos["nbElo1"] >= 50)  # need X sets to trust Elo rating
+    & (
+        dfWithElos["nbElo1"] >= 50
+    )  # need X sets in player histo ratings to trust Elo rating
     & (dfWithElos["nbElo2"] >= 50)
 ]
 
-dfWithElos = calc_brier(dfWithElos, "IndexP", "ProbaElo")
-dfWithElos["Proba_odds"] = 1 / dfWithElos["Odds1"]
-dfWithElos = calc_brier(dfWithElos, "IndexP", "Proba_odds", "brier_odds")
-dfWithElos = calc_roi(dfWithElos, "Odds1", "Odds2", "IndexP", "ProbaElo")
-dfWithElos.to_csv("./results/predictions.csv")
-# PlayersElo.get_ranking(playersElo)
-
-print("-----" + str(2021) + "-----")
-playersEloYr = PlayersElo.filterplayersratings_byyear(playersElo, 2021)
-PlayersElo.get_ranking(playersEloYr)
-
-print("Brier score for Elo " + str(dfWithElos["brier"].mean()))
-# 0.2053(set, adj_out) 0.(set, NO adj_out)
-print("Brier score for Odds " + str(dfWithElos["brier_odds"].mean()))
-# 0.1885
-sumROI_stake = dfWithElos["stake_roi1"].sum()
-sumROI_profit = dfWithElos["pnl_roi1"].sum()
-roi = 100 * round(sumROI_profit / sumROI_stake, 3)
-print(
-    "Roi(Kelly) for Elo: stake={} Profit={} => ROI={} %".format(
-        str(sumROI_stake), str(sumROI_profit), str(roi)
-    ),
-)
-# 0.2053(set, adj_out) 0.(set, NO adj_out)
-
+analyse_predictions(dfWithElos)
 analyse_out_periods_predictions(dfWithElos)
