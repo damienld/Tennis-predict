@@ -10,3 +10,4 @@ results/set_by_set/AllElo.json
 results/set_by_set/dfWithElos.csv
 results/set_by_set_AND_adj_out/AllElo.json
 results/set_by_set_AND_adj_out/dfWithElos.csv
+results/predictions.csv

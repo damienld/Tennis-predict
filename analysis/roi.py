@@ -2,7 +2,7 @@ import pandas as pd
 from pandas import DataFrame
 from typing import Tuple
 
-def calc_kelly_stake(myproba:float, odds: float, minstake=0.5, maxstake=3)->float:
+def calc_kelly_stake(myproba:float, odds: float, minstake=0.5, maxstake=2.5)->float:
     """Calculate the stake associated to the value of the bet
 
     Args:
@@ -15,7 +15,7 @@ def calc_kelly_stake(myproba:float, odds: float, minstake=0.5, maxstake=3)->floa
     """
     kelly = 15*( (odds - 1) * myproba - (1 - myproba)) / (odds - 1)
     if (kelly >= minstake):
-        return min(3, round(kelly, 1))
+        return min(maxstake, round(kelly, 1))
     else:
         return 0
 

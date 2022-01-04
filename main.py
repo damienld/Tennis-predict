@@ -25,7 +25,7 @@ from pandas import DataFrame
 from analysis.brier_score import calc_brier
 from analysis.out_periods_elo import analyse_out_periods_predictions
 from elo.elorating import PlayerElo, PlayersElo
-from analysis.analysis import analyse_predictions
+from analysis.analysis import analyse_predictions, compare_predictions_accuracy
 
 # LOAD DATA
 def get_data(is_atp: bool, yrstart=2019, yrend=2021) -> DataFrame:
@@ -109,7 +109,6 @@ if playersElo == None:
         *df.apply(
             lambda row: PlayerElo.update_elos_matches(
                 playersElo,
-                row.name,
                 row["P1"],
                 row["P1Id"],
                 row["Rk1"],
@@ -120,6 +119,7 @@ if playersElo == None:
                 row["SetsP2"],
                 row["TrnRk"],
                 row["RoundId"],
+                row["CourtId"],
                 row["Date"],
                 row["IsCompleted"],
                 isatp,
@@ -136,20 +136,20 @@ if playersElo == None:
 
 
 dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
+# show 2021 end of year ratings
 print("-----" + str(2021) + "-----")
 playersEloYr = PlayersElo.filterplayersratings_byyear(playersElo, 2021)
-PlayersElo.get_latest_ranking_year(playersEloYr)
+# PlayersElo.get_latest_ranking_year(playersEloYr)
+
 # dont keep year 1 as it served to make elo stable rankings
 dfWithElos = dfWithElos[dfWithElos["Date"] > datetime(2013, 12, 10)]
-# dont predict/test at lower levels ( ATP level only) andR1+
-dfWithElos = dfWithElos[
-    (dfWithElos["TrnRk"] >= 2)
-    & (dfWithElos["TrnRk"] <= 5)
-    & (
-        dfWithElos["nbElo1"] >= 50
-    )  # need X sets in player histo ratings to trust Elo rating
-    & (dfWithElos["nbElo2"] >= 50)
-]
 
+# Only Completed matches
+dfWithElos = dfWithElos[dfWithElos["IsCompleted"]]
+
+# dont predict/test at lower levels ( ATP level only) andR1+
+dfWithElos = dfWithElos[(dfWithElos["TrnRk"] >= 2) & (dfWithElos["TrnRk"] <= 5)]
+
+compare_predictions_accuracy(dfWithElos)
 analyse_predictions(dfWithElos)
 analyse_out_periods_predictions(dfWithElos)
