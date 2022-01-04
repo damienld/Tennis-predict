@@ -24,6 +24,15 @@ Predict the outcome of ATP/WTA matches based on advanced features
 
 
 ## 2 - Build ELO ratings for each match
+**ELO rating** (Wikpedia):
+The **difference in the ratings between two players serves as a predictor** of the outcome of a match. Two players with equal ratings who play against each other are expected to score an equal number of wins. A player whose rating is 100 points greater than their opponent's is expected to score 64%; if the difference is 200 points, then the expected score for the stronger player is 76%.
+
+A player's Elo rating is represented by a number which may change depending on the outcome of rated games played. 
+After every game, the winning player takes points from the losing one. The difference between the ratings of the winner and loser determines the total number of points gained or lost after a game. If the higher-rated player wins, then only a few rating points will be taken from the lower-rated player. However, if the lower-rated player scores an upset win, many rating points will be transferred. The lower-rated player will also gain a few points from the higher rated player in the event of a draw. This means that this rating system is self-correcting. Players whose ratings are too low or too high should, in the long run, do better or worse correspondingly than the rating system predicts and thus gain or lose rating points until the ratings reflect their true playing strength.
+
+**K-factor**
+Elo’s K-factor **determines how quickly the rating reacts to new game results**. It should be set so as to efficiently account for new data but not overreact to it. (In a more technical sense, the goal is to minimize autocorrelation.) If K is set too high, the ratings will jump around too much; if it’s set too low, Elo will take too long to recognize important changes in player quality.
+
 - Implement the ELO basic rating (elorating.py) and some useful function to use it
     - **PlayerElo** object will represent a player with his historical Elo rating after each match, it contains 2 dictionnaries:
         - eloratings: {date*: new ELO rating after this date}
@@ -33,8 +42,8 @@ Predict the outcome of ATP/WTA matches based on advanced features
     - **initial rating**: we had 2 choices here (2nd one was selected after trying both)
         - turn the official current ATP ranking of the player into an ELO estimation for this rank (a rough mapping was done)
         - start everyone at the same level and ignore the first year as it will be calibrating the ELO of each player
-- Adapt it to Tennis
-    - K-Factor is implemented followng this article  
+- Adapting it to Tennis
+    - Determining the best formula for K-factor:  
         - coeffKplayer = aCoeffK * 250 / ((nbmatches + 5) ** 0.4) (as per https://fivethirtyeight.com/features/serena-williams-and-the-difference-between-all-time-great-and-greatest-of-all-time/)
         - also it takes into account the round and tournament importance
         - additionnally if the ELO of the opponent is not really defined yet (less than 50 matches) K factor is largely decreased (as the opp's ELO rating can't be trusted)     
@@ -50,6 +59,7 @@ It is applied on ATP date (TrnRk>=2 from 2014 onwards)
 We evaluate the difference between our prediction and the actual result:
 - Brier score for Elo 0.2055
 - Brier score for Odds 0.1878 (caclulated by using bookmaker odds)
+
 We also calculate the ROI if we were betting every time our probability was quite different from the offered odds
 - Applying Kelly criterion: 15*( (odds - 1) * myproba - (1 - myproba)) / (odds - 1) which gives for example 1 unit for 50% at 2.16 (2u for 40% at 3.24 ..) 
 - ROI model 1 = -5.9%
