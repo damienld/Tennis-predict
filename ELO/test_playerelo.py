@@ -5,39 +5,65 @@ Launch all test_*.py by launching
 """
 from datetime import datetime, timedelta
 from elo.elorating import PlayerElo
+import pytest
+
+
+class Test_get_idcourt_cat_from_idcourt:
+    def test_get_idcourt_cat_from_idcourt_1(self):
+        with pytest.raises(Exception) as e_info:
+            PlayerElo.get_idcourt_cat_from_idcourt(0)
+
+    def test_get_idcourt_cat_from_idcourt_2(self):
+        assert (
+            PlayerElo.get_idcourt_cat_from_idcourt(3) == 2
+            and PlayerElo.get_idcourt_cat_from_idcourt(1) == 2
+            and PlayerElo.get_idcourt_cat_from_idcourt(2) == 1
+            and PlayerElo.get_idcourt_cat_from_idcourt(4) == 2
+            and PlayerElo.get_idcourt_cat_from_idcourt(5) == 2
+        )
 
 
 def test_get_latest_rating_1():
     p: PlayerElo
-    p = PlayerElo("name1", "1")
-    res = PlayerElo.get_latest_rating(p)
+    p = PlayerElo("name1", "1", -1)
+    res = PlayerElo.get_latest_rating(p, 0)
     assert res == (PlayerElo.elo_initialrating, 0, -1)
 
 
 def test_get_latest_rating_2():
     # work for PlayerElo.elo_initialrating=1500
     p: PlayerElo
-    p = PlayerElo("name1", "1")
-    p.add_rating(1550, datetime(2020, 10, 10), 2)
-    nbmatches = PlayerElo.get_latest_rating(p)[1]
-    p.add_rating(1750, datetime(2020, 10, 20), nbmatches + 3)
-    res2 = PlayerElo.get_latest_rating(p)
+    p = PlayerElo("name1", "1", -1)
+    p.add_rating(1, 1550, datetime(2020, 10, 10), 2)
+    nbmatches = PlayerElo.get_latest_rating(p, 1)[1]
+    p.add_rating(1, 1750, datetime(2020, 10, 20), nbmatches + 3)
+    res2 = PlayerElo.get_latest_rating(p, 1)
     assert res2 == (1750, 5, 202010200)
 
 
 def test_getKcoeff_1():
-    k = PlayerElo.get_Kcoeff(0, 1000, 1, 9, False)
+    k = PlayerElo.get_Kcoeff(0, 1000, 6, 2, False)
     assert round(k) == 131
 
 
 def test_getKcoeff_2():
-    k = PlayerElo.get_Kcoeff(300, 1000, 1, 6, False)
+    k = PlayerElo.get_Kcoeff(300, 1000, 2, 6, False)
     assert round(k) == 25
 
 
 def test_getKcoeff_3():
-    k = PlayerElo.get_Kcoeff(0, 10, 1, 9, False)
+    k = PlayerElo.get_Kcoeff(0, 10, 6, 2, False)
     assert round(k) == 26
+
+
+def test_getKcoeff_4():
+    k = PlayerElo.get_Kcoeff(0, 10, 5, 2, False)
+    assert round(k) == 25
+
+
+def test_getKcoeff_5():
+    k = PlayerElo.get_Kcoeff(0, 10, 5, 1, False)
+    assert round(k) == 25 * 0.85
 
 
 def test___get_new_elo_ratings_1():

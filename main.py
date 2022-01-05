@@ -88,68 +88,79 @@ def get_data(is_atp: bool, yrstart=2019, yrend=2021) -> DataFrame:
     return dfMatches
 
 
-playersElo = PlayersElo.deserialize("./results/AllElo.json")
-if playersElo == None:
-    playersElo: PlayersElo = {}
-    # create/build the matches and elo files
-    isatp = True
-    df = get_data(isatp, 2013, 2021)
+if __name__ == "__main__":
+    playersElo = PlayersElo.deserialize("./results/AllElo.json")
+    if playersElo == None:
+        playersElo: PlayersElo = {}
+        # create/build the matches and elo files
+        isatp = True
+        df = get_data(isatp, 2013, 2021)
 
-    (
-        df["Elo1"],
-        df["nbElo1"],
-        df["EloAfter1"],
-        df["DaysLastElo1"],
-        df["Elo2"],
-        df["nbElo2"],
-        df["EloAfter2"],
-        df["DaysLastElo2"],
-        df["ProbaElo"],
-    ) = zip(
-        *df.apply(
-            lambda row: PlayerElo.update_elos_matches(
-                playersElo,
-                row["P1"],
-                row["P1Id"],
-                row["Rk1"],
-                row["P2"],
-                row["P2Id"],
-                row["Rk2"],
-                row["SetsP1"],
-                row["SetsP2"],
-                row["TrnRk"],
-                row["RoundId"],
-                row["CourtId"],
-                row["Date"],
-                row["IsCompleted"],
-                isatp,
-                True,
-                True,
-            ),
-            axis=1,
+        (
+            df["Elo1"],
+            df["nbElo1"],
+            df["EloAfter1"],
+            df["DaysLastElo1"],
+            df["Elo2"],
+            df["nbElo2"],
+            df["EloAfter2"],
+            df["DaysLastElo2"],
+            df["ProbaElo"],
+            df["Elo1Court"],
+            df["nbElo1Court"],
+            df["EloAfter1Court"],
+            df["DaysLastElo1Court"],
+            df["Elo2Court"],
+            df["nbElo2Court"],
+            df["EloAfter2Court"],
+            df["DaysLastElo2Court"],
+            df["ProbaEloCourt"],
+        ) = zip(
+            *df.apply(
+                lambda row: PlayerElo.update_elos_matches(
+                    playersElo,
+                    row["P1"],
+                    row["P1Id"],
+                    row["Rk1"],
+                    row["P2"],
+                    row["P2Id"],
+                    row["Rk2"],
+                    row["SetsP1"],
+                    row["SetsP2"],
+                    row["TrnRk"],
+                    row["RoundId"],
+                    row["CourtId"],
+                    row["Date"],
+                    row["IsCompleted"],
+                    isatp,
+                    True,
+                    True,
+                ),
+                axis=1,
+            )
         )
-    )
-    # save a dataframe with all matches and Elo rating of each player for the matches
-    df.to_csv("./results/dfWithElos.csv")
-    # save the historical rating for each player
-    PlayersElo.serialize(playersElo, "./results/AllElo.json")
+        # save a dataframe with all matches and Elo rating of each player for the matches
+        df.to_csv("./results/dfWithElos.csv")
+        # save the historical rating for each player
+        PlayersElo.serialize(playersElo, "./results/AllElo.json")
 
+    dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
+    # show 2021 end of year ratings
+    print("-----" + str(2021) + "-----")
+    playersEloYr = PlayersElo.filterplayersratings_byyear(0, playersElo, 2021)
+    # PlayersElo.get_latest_ranking_year(playersEloYr)
+    print("-----" + str(2021) + " CLAY -----")
+    # PlayersElo.get_latest_ranking_year(playersEloYr, 1)
 
-dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
-# show 2021 end of year ratings
-print("-----" + str(2021) + "-----")
-playersEloYr = PlayersElo.filterplayersratings_byyear(playersElo, 2021)
-# PlayersElo.get_latest_ranking_year(playersEloYr)
+    # dont keep year 1 as it served to make elo stable rankings
+    dfWithElos = dfWithElos[dfWithElos["Date"] > datetime(2013, 12, 10)]
 
-# dont keep year 1 as it served to make elo stable rankings
-dfWithElos = dfWithElos[dfWithElos["Date"] > datetime(2013, 12, 10)]
+    # Only Completed matches
+    dfWithElos = dfWithElos[dfWithElos["IsCompleted"]]
 
-# Only Completed matches
-dfWithElos = dfWithElos[dfWithElos["IsCompleted"]]
+    # dont predict/test at lower levels ( ATP level only) andR1+
+    dfWithElos = dfWithElos[(dfWithElos["TrnRk"] >= 2) & (dfWithElos["TrnRk"] <= 5)]
 
-# dont predict/test at lower levels ( ATP level only) andR1+
-dfWithElos = dfWithElos[(dfWithElos["TrnRk"] >= 2) & (dfWithElos["TrnRk"] <= 5)]
-
-compare_predictions_accuracy(dfWithElos)
-analyse_predictions(dfWithElos)
-analyse_out_periods_predictions(dfWithElos)
+    compare_predictions_accuracy(dfWithElos)
+    analyse_predictions(dfWithElos)
+    analyse_out_periods_predictions(dfWithElos)
