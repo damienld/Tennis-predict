@@ -97,8 +97,13 @@ def compare_predictions_accuracy(df: DataFrame):
 
 
 def analyse_predictions(df: DataFrame):
-
-    # proba_match = round(PlayerElo.get_match_proba(elo2, elo1), 3)
+    """df_elomixed = df[(df["nbElo1Court"] >= 50) & (df["nbElo2Court"] >= 50)]
+    elo_exact_mixed = len(
+        df_elomixed[
+            df_elomixed["Elo1"] + df_elomixed["Elo1Court"]
+            >= df_elomixed["Elo2"] + df_elomixed["Elo2Court"]
+        ]
+    )"""
 
     df["Proba_odds"] = 1 / df["Odds1"]
     df = calc_brier(df, "IndexP", "Proba_odds", "brier_odds")
@@ -107,6 +112,9 @@ def analyse_predictions(df: DataFrame):
 
     df = calc_brier(df, "IndexP", "ProbaElo")
     df = calc_roi(df, "Odds1", "Odds2", "IndexP", "ProbaElo")
+    df = calc_roi(
+        df, "Odds1", "Odds2", "IndexP", "ProbaEloMix", "stake_roi1mix", "pnl_roi1mix"
+    )
 
     print("Brier score for Elo " + str(df["brier"].mean()))
     # 0.2053(set, adj_out) 0.(set, NO adj_out)
@@ -117,6 +125,15 @@ def analyse_predictions(df: DataFrame):
     roi = 100 * round(sumROI_profit / sumROI_stake, 3)
     print(
         "Roi(Kelly) for Elo: stake={} Profit={} => ROI={} %".format(
+            str(sumROI_stake), str(sumROI_profit), str(roi)
+        ),
+    )
+
+    sumROI_stake = df["stake_roi1mix"].sum()
+    sumROI_profit = df["pnl_roi1mix"].sum()
+    roi = 100 * round(sumROI_profit / sumROI_stake, 3)
+    print(
+        "Roi(Kelly) for Elo Mix: stake={} Profit={} => ROI={} %".format(
             str(sumROI_stake), str(sumROI_profit), str(roi)
         ),
     )

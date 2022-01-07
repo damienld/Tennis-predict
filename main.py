@@ -27,8 +27,9 @@ from analysis.out_periods_elo import analyse_out_periods_predictions
 from elo.elorating import PlayerElo, PlayersElo
 from analysis.analysis import analyse_predictions, compare_predictions_accuracy
 from typing import Tuple
-from elo.eloXmonths import set_last9m_court_elo_dataframe
+from elo.elodataframe import set_last9m_court_elo_dataframe
 from elo.elopeak import set_peak_elo
+from elo.elodataframe import apply_mixed_elo
 
 # LOAD DATA
 def get_data(is_atp: bool, yrstart=2019, yrend=2022) -> DataFrame:
@@ -146,6 +147,7 @@ if __name__ == "__main__":
                 axis=1,
             )
         )
+        df = apply_mixed_elo(df)
         # save a dataframe with all matches and Elo rating of each player for the matches
         df.to_csv("./results/dfWithElos.csv")
         # save the historical rating for each player
@@ -181,6 +183,7 @@ if __name__ == "__main__":
         dfWithElos9M = set_last9m_court_elo_dataframe(
             df_toupdate_9m, dfWithElos, playersElo
         )
+
     # Set/Load PEAK Elo
     try:
         dfWithElos9M_peak = pd.read_csv(
@@ -189,6 +192,7 @@ if __name__ == "__main__":
     except:
         dfWithElos9M_peak = set_peak_elo(dfWithElos9M, playersElo)
 
+    # test
     p: PlayerElo = playersElo[14177]
     p.get_peak_Elo(datetime(2021, 12, 4))  # 1742.8 datetime(2020,9,2)
     p.get_elo_court_cat_lastXmonths(datetime(2021, 12, 4), dfWithElos, 9)

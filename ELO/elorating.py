@@ -58,12 +58,11 @@ class PlayerElo:
 
     @staticmethod
     def get_elo_from_mixed(
-        elo: float, nbelo: int, elo_court_cat: float, nb_elo_court_cat: int
+        elo: float, elo_court_cat: float, nb_elo_court_cat: int
     ) -> Tuple[float, int]:
         """Mix Elo rating and Elo rating on court_cat
         Args:
             elo (float): [description]
-            nbelo (int): [description]
             elo_court_cat (float): [description]
             nb_elo_court_cat (int): [description]
 
@@ -136,7 +135,6 @@ class PlayerElo:
                 nb_last9m += match_details.sets1 + match_details.sets2
                 elo_opp, elo_nb_opp = PlayerElo.get_elo_from_mixed(
                     match_details.opp_elo,
-                    match_details.opp_elo_nb,
                     match_details.opp_elo_c,
                     match_details.opp_elo_nb_c,
                 )
@@ -807,11 +805,16 @@ class PlayerElo:
 
     @staticmethod
     def get_match_proba(rating1, rating2) -> float:
+        """Return the proba for player 1
+
+        Args:
+            rating1 ([type]): rating P2!
+            rating2 ([type]): rating P1!
+
+        Returns:
+            float: [description]
         """
-        Compares the two ratings of the this player and the opponent.
-        @param opponent - the player to compare against.
-        @returns - The expected score between the two players.
-        """
+
         return (1 + 10 ** ((rating1 - rating2) / 400.0)) ** -1
 
 

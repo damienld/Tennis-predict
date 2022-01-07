@@ -34,3 +34,29 @@ def set_last9m_court_elo_dataframe(
     # save a dataframe with all matches and Elo rating of each player for the matches
     df.to_csv("./results/dfWithElos9m.csv")
     return df
+
+
+###########################################################################################
+
+
+def get_mixed_elo(row) -> float:
+    elomix1 = PlayerElo.get_elo_from_mixed(
+        row["Elo1"], row["Elo1Court"], row["nbElo1Court"]
+    )
+    elomix2 = PlayerElo.get_elo_from_mixed(
+        row["Elo2"], row["Elo2Court"], row["nbElo2Court"]
+    )
+    return PlayerElo.get_match_proba(elomix2[0], elomix1[0])
+
+
+def apply_mixed_elo(df: DataFrame) -> DataFrame:
+    """Add a column ProbaEloMix which is the proba of the match using average of Elo and EloCourt for both players
+
+    Args:
+        df (DataFrame): [description]
+
+    Returns:
+        DataFrame: [description]
+    """
+    df["ProbaEloMix"] = df.apply(lambda row: get_mixed_elo(row), axis=1)
+    return df
