@@ -29,7 +29,7 @@ def apply_roi(oddsP1: float, oddsP2: float, predictionP1win: float, result: int)
         result (int): 0=P1 won, 1=P2 won
 
     Returns: Tuple
-        (int): The stake in units (0 to 3u)
+        (int): The stake in units (0 to 2.5u)
         (float): The net benefit for this bet
     """
     isP1won = result==0

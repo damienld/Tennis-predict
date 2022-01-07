@@ -1,12 +1,30 @@
 """
 """
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 from typing import Tuple
 from pandas import DataFrame
 from tennis.tennis_common import calc_datediff_withoutoffseason
+from collections import namedtuple
+import numpy as np
 
 # from dataclasses import dataclass, field
+
+MatchDetails = namedtuple(
+    "MatchDetails",
+    [
+        "trn_rk",
+        "round",  # 1
+        "is_completed",
+        "opp_id",  # 3
+        "sets1",
+        "sets2",  # 5
+        "opp_elo",
+        "opp_elo_nb",  # 7
+        "opp_elo_c",
+        "opp_elo_nb_c",
+    ],
+)
 
 
 class PlayerElo:
@@ -32,44 +50,117 @@ class PlayerElo:
         self.elomatches_nonclay = {-1: 0}
         self.eloratings = {-1: initalrating}
         self.elomatches = {-1: 0}
+        # self.elomatchdetails = {-1: None}
 
     def __repr__(self):
         rating = self.get_latest_rating(0)
         return ("{} {} {} ({})").format(self.name, self.id, rating[0], rating[1])
 
-    """    def temp(
-            players: dict,
-            elo1: float,
-            elo2: float,
-            id1: str,
-            rank1: int,
-            id2: str,
-            rank2: int,
-            nbsets_won1: int,
-            nbsets_won2: int,
-            trn_rk: int,
-            idround: int,
-            date_match: datetime,
-            is_completed: bool,
-            isadj_for_out_period: bool,
-        ):
-            if is_completed:
-                proba_match1 = round(PlayerElo.get_match_proba(elo2, elo1), 3)
-                elo1after, elo2after = PlayerElo.get_new_elo_ratings_setbyset(
-                    elo1,
-                    elo2,
-                    nbelo1,
-                    nbelo2,
-                    days_since_last_elo1,
-                    days_since_last_elo2,
-                    nbsets_won1,
-                    nbsets_won2,
-                    trn_rk == 4,
-                    idround,
+    @staticmethod
+    def get_elo_from_mixed(
+        elo: float, nbelo: int, elo_court_cat: float, nb_elo_court_cat: int
+    ) -> Tuple[float, int]:
+        """Mix Elo rating and Elo rating on court_cat
+        Args:
+            elo (float): [description]
+            nbelo (int): [description]
+            elo_court_cat (float): [description]
+            nb_elo_court_cat (int): [description]
+
+        Returns: Tuple
+            - float: Mixed ELO if enough match on court_cat (else just overall Elo)
+            - int: Number of matches/sets taken into account on court_cat
+        """
+        if nb_elo_court_cat >= PlayerElo.coeff_KCoeff_opp / 2:
+            avg_elo = (elo + elo_court_cat) / 2
+            avg_nb = nb_elo_court_cat
+        else:
+            avg_elo = elo
+            avg_nb = nb_elo_court_cat
+        return avg_elo, avg_nb
+
+    def get_elo_court_cat_lastXmonths(
+        self, dateend: datetime, df: DataFrame, months: int = 9
+    ) -> Tuple[int, int, int]:
+        # get date - 9M in date_elo format YYYYMMDDn
+        date_start = dateend + timedelta(days=round(-months * 30.5))
+        # filter df to get the matches
+        df = df.loc[
+            (df["Date"] >= date_start.strftime("%Y-%m-%d"))
+            & (df["Date"] < dateend.strftime("%Y-%m-%d"))
+            & ((df["P1Id"] == self.id) | (df["P2Id"] == self.id))
+            # & ((df["P1Id"] == str(self.id)) | (df["P2Id"] == str(self.id)))
+        ]
+        # filter dict self.eloratings_<court_cat> where ( date_elo >= (date - 9M) )
+        """dict_elo_ratings_court_cat = self.__get_ratings_dict(idcourt_cat)
+        dates_ratings_court_cat = dict_elo_ratings_court_cat.keys()
+        dates_ratings_court_cat = [
+            int(date)
+            for date in dates_ratings_court_cat
+            if (int(date) >= date_start_int)
+        ]
+        dates_ratings_court_cat = [
+            int(date) for date in dates_ratings_court_cat if (int(date) < date_end_int)
+        ]"""
+        # init starting ELO
+        nb_last9m = 0
+        if len(df) > 0:
+            indexplayer: str = "1"
+            if df.iloc[0]["P2Id"] == self.id:
+                indexplayer = "2"
+            elo_last9m = df.iloc[0]["Elo" + indexplayer]
+        else:
+            elo_last9m = 1500
+        # loop each match for last 9M
+        print(self.name + "-9M start:" + str(elo_last9m))
+        for idx, row in df.iterrows():
+            indexopp = "1"
+            indexp = "2"
+            if row["P1Id"] == self.id:
+                indexopp = "2"
+                indexp = "1"
+            # match_details: MatchDetails = self.elomatchdetails[str(date_match)]
+            match_details = MatchDetails(
+                row["TrnRk"],
+                row["RoundId"],
+                row["IsCompleted"],
+                row["P" + indexopp + "Id"],
+                row["SetsP" + indexp],
+                row["SetsP" + indexopp],
+                row["Elo" + indexopp],
+                row["nbElo" + indexopp],
+                row["Elo" + indexopp + "Court"],
+                row["nbElo" + indexopp + "Court"],
+            )
+            if match_details.is_completed:
+                nb_last9m += match_details.sets1 + match_details.sets2
+                elo_opp, elo_nb_opp = PlayerElo.get_elo_from_mixed(
+                    match_details.opp_elo,
+                    match_details.opp_elo_nb,
+                    match_details.opp_elo_c,
+                    match_details.opp_elo_nb_c,
                 )
-                p1.add_rating(elo1after, date_match, nbelo1 + nbsets_won1 + nbsets_won2)
-                p2.add_rating(elo2after, date_match, nbelo2 + nbsets_won1 + nbsets_won2)
-    """
+                elo_last9m = self.get_new_elo_ratings_setbyset(
+                    elo_last9m,
+                    elo_opp,
+                    nb_last9m,
+                    elo_nb_opp,
+                    match_details.sets1,
+                    match_details.sets2,
+                    match_details.trn_rk,
+                    match_details.round,
+                )[0]
+                print(
+                    "{}-{} v {} {}({})=>{}".format(
+                        (match_details.sets1),
+                        match_details.sets2,
+                        row["P" + indexopp],
+                        elo_opp,
+                        elo_nb_opp,
+                        elo_last9m,
+                    )
+                )
+        return (elo_last9m, nb_last9m)
 
     def __get_ratings_dict(self, idcourt_cat: int) -> dict:
         if idcourt_cat == 0:
@@ -141,14 +232,21 @@ class PlayerElo:
         return 0
 
     def add_rating(
-        self, idcourt_cat: int, newrating: int, date: datetime, nr_matches_to_set: int
+        self,
+        idcourt_cat: int,
+        newrating: int,
+        date: datetime,
+        nr_matches_to_set: int,
     ) -> None:
         """Add the updated ELO rating to eloratings. And the total number of matches.
+        Also add the matchdetails which are used for example when recalculating lastXmonths elo
 
         Args:
+            idcourt_cat (int): [description]
             newrating (int): Updated elo rating after the new match
             date (datetime): Date of the match
             nr_matches_to_set (int): Set the new total number of matches! (no addition)
+            matchdetails (MatchDetails): used for example when recalculating lastXmonths elo. Can be set to None if no need.
         """
         ref_to_rating: dict = self.__get_ratings_dict(idcourt_cat)
         ref_to_matches: dict = self.__get_matches_dict(idcourt_cat)
@@ -172,6 +270,8 @@ class PlayerElo:
         day = int(day)
         ref_to_rating[day] = newrating
         ref_to_matches[day] = nr_matches_to_set
+        # if matchdetails != None:
+        #    self.elomatchdetails[day] = matchdetails
 
     def get_latest_rating(self, idcourt_cat: int) -> Tuple[int, int, int]:
         """Returns the rating information (Elo rating, # matches, date) from the last match played
@@ -255,7 +355,7 @@ class PlayerElo:
     ):
         """From a match result info, it calculates/returns the ELO info for each player:
         Args:
-            players (dict): the dictionnary containing all Elo history by players. It will be used/updated.
+            players (dict): the dictionnary containing all Elo history by players. {<idP>: <PlayerElo>}. It will be used/updated.
             name1 (str): P1 name
             id1 (str): id1
             rank1 (int): ATP Rank P1
@@ -336,6 +436,30 @@ class PlayerElo:
         elo2_court_after = elo2_court
         proba_match1 = -1
         proba_match1_court = -1
+        """matchdetails1: MatchDetails = MatchDetails(
+            trn_rk,
+            idround,
+            is_completed,
+            id2,
+            nbsets_won1,
+            nbsets_won2,
+            elo2,
+            nbelo2,
+            elo2_court,
+            nbelo2_court,
+        )
+        matchdetails2: MatchDetails = MatchDetails(
+            trn_rk,
+            idround,
+            is_completed,
+            id1,
+            nbsets_won2,
+            nbsets_won1,
+            elo1,
+            nbelo1,
+            elo1_court,
+            nbelo1_court,
+        )"""
         if is_completed:
             proba_match1 = round(PlayerElo.get_match_proba(elo2, elo1), 3)
             proba_match1_court = round(
@@ -373,8 +497,8 @@ class PlayerElo:
                     nbelo1,
                     nbelo2,
                     True,
-                    trn_rk == 4,
                     idround,
+                    trn_rk,
                 )
                 (
                     elo1_court_after,
@@ -385,22 +509,36 @@ class PlayerElo:
                     nbelo1_court,
                     nbelo2_court,
                     True,
-                    trn_rk == 4,
                     idround,
+                    trn_rk,
                 )
-            p1.add_rating(0, elo1after, date_match, nbelo1 + nbsets_won1 + nbsets_won2)
+            # add overall rating P1
+            p1.add_rating(
+                0,
+                elo1after,
+                date_match,
+                nbelo1 + nbsets_won1 + nbsets_won2,
+            )
+            # add court_cat rating P1
             p1.add_rating(
                 idcourt_cat,
                 elo1_court_after,
                 date_match,
-                nbelo1 + nbsets_won1 + nbsets_won2,
+                nbelo1_court + nbsets_won1 + nbsets_won2,
             )
-            p2.add_rating(0, elo2after, date_match, nbelo2 + nbsets_won1 + nbsets_won2)
+            # add rating P2
+            p2.add_rating(
+                0,
+                elo2after,
+                date_match,
+                nbelo2 + nbsets_won1 + nbsets_won2,
+            )
+            # add court_cat rating P2
             p2.add_rating(
                 idcourt_cat,
                 elo2_court_after,
                 date_match,
-                nbelo2 + nbsets_won1 + nbsets_won2,
+                nbelo2_court + nbsets_won1 + nbsets_won2,
             )
         print(
             elo1,
@@ -639,7 +777,7 @@ class PlayerElo:
 
         if trnrk < 2 or trnrk == 6:
             # Level Challenger or -
-            aCoeffK = 0.5
+            aCoeffK = 0.6
         if roundid == 4:
             # Round 2 or -
             aCoeffK = aCoeffK * 0.85
@@ -648,7 +786,7 @@ class PlayerElo:
             aCoeffK = aCoeffK * 0.95
         elif roundid < 4:
             # Round 2 or -
-            aCoeffK = aCoeffK * 0.75
+            aCoeffK = aCoeffK * 0.7
         if trnrk == 4 and roundid >= 4:
             aCoeffK *= 1.15
 
@@ -726,6 +864,18 @@ class PlayersElo:
         return datetime.strptime(str(myelodate)[:-1], "%Y%m%d")
 
     @staticmethod
+    def get_date_eloformat(date: datetime) -> int:
+        """Returns a ELO date from the datetime
+
+        Args:
+            date (datetime): date to transform
+
+        Returns:
+            int: ELO date format "YYYYMMDDn" with n=0 of match of the day
+        """
+        return int(date.strftime("%Y%m%d") + "0")
+
+    @staticmethod
     def get_latest_ranking_year(players: dict, idcourt_cat: int = 0):
         playersandlastelo = []
         for p in players:
@@ -783,12 +933,12 @@ class PlayersElo:
         return newdict
 
     @staticmethod
-    def serialize(ratings, filename="AllElo.json"):
+    def serialize(ratings, filename="AllElos.json"):
         newdict = {i: j.__dict__ for i, j in ratings.items()}
         json.dump(newdict, open(filename, "w"), indent=2)
 
     @staticmethod
-    def deserialize(filename="AllElo.json"):
+    def deserialize(filename="AllElos.json"):
         try:
             o = json.load(open(filename))
             pe = {}

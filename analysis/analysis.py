@@ -29,6 +29,25 @@ def compare_predictions_accuracy(df: DataFrame):
         ]
     )
     elo_mixed = 100 * elo_exact_mixed / (len(df_elomixed) + 1)
+    # Elo court 9m
+    df_elocourt9m = df[(df["nbElo1court9m"] >= 20) & (df["nbElo2court9m"] >= 20)]
+    elo_exact_court9m = len(
+        df_elocourt9m[df_elocourt9m["Elo1court9m"] >= df_elocourt9m["Elo2court9m"]]
+    )
+    elo_court9m = 100 * elo_exact_court9m / (len(df_elocourt9m) + 1)
+    # Elo ranking+court+9m
+    df_elomixed2 = df[(df["nbElo1court9m"] >= 20) & (df["nbElo2court9m"] >= 20)]
+    elo_exact_mixed2 = len(
+        df_elomixed2[
+            df_elomixed2["Elo1"]
+            + df_elomixed2["Elo1Court"]
+            + 0.5 * df_elomixed2["Elo1court9m"]
+            >= df_elomixed2["Elo2"]
+            + df_elomixed2["Elo2Court"]
+            + 0.5 * df_elomixed2["Elo2court9m"]
+        ]
+    )
+    elo_mixed2 = 100 * elo_exact_mixed2 / (len(df_elomixed2) + 1)
     # Bookmakers Odds
     # Check margin is between 0.98 and 1.1
     df_book = df[
@@ -47,12 +66,14 @@ def compare_predictions_accuracy(df: DataFrame):
         "Best Elo ranking",
         "Best Elo Court",
         "Best Mixed Elo",
+        "Best RecentElo",
+        "Best Mixed2 Elo",
         "Best Odds",
     ]
-    values = [atp, elo, elo_court, elo_mixed, book]
+    values = [atp, elo, elo_court, elo_mixed, elo_court9m, elo_mixed2, book]
     xaxis_label = "% of matches correctly predicted"
     title = (
-        "Prediction of all ATP main draw matches since 2014 <br> ("
+        "Prediction of all ATP main draw matches since 2015 <br> ("
         + str(len(df))
         + " matches)"
     )
@@ -62,7 +83,7 @@ def compare_predictions_accuracy(df: DataFrame):
         y=values,
         color=labels,
         title=title,
-        width=500,
+        width=700,
         height=600,
         labels={"x": "Prediction Method", "y": "Accuracy (%)"},
     )
@@ -71,10 +92,13 @@ def compare_predictions_accuracy(df: DataFrame):
 
 
 def analyse_predictions(df: DataFrame):
+
+    # proba_match = round(PlayerElo.get_match_proba(elo2, elo1), 3)
+
     df["Proba_odds"] = 1 / df["Odds1"]
     df = calc_brier(df, "IndexP", "Proba_odds", "brier_odds")
     # need X sets in player histo ratings to trust Elo rating, update proba to -1 for those rows
-    df.loc[(df["nbElo1"] >= 50) & (df["nbElo2"] >= 50), "ProbaElo"] = -1
+    df.loc[(df["nbElo1"] < 50) | (df["nbElo2"] < 50), "ProbaElo"] = -1
 
     df = calc_brier(df, "IndexP", "ProbaElo")
     df = calc_roi(df, "Odds1", "Odds2", "IndexP", "ProbaElo")

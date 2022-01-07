@@ -13,3 +13,6 @@ results/set_by_set_AND_adj_out/dfWithElos.csv
 results/predictions.csv
 results/dfTest.csv
 results/dfTestWithElo.csv
+tests/df.csv
+results/dfWithElos9m.csv
+results/AllElos.json

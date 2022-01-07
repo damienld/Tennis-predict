@@ -26,9 +26,11 @@ from analysis.brier_score import calc_brier
 from analysis.out_periods_elo import analyse_out_periods_predictions
 from elo.elorating import PlayerElo, PlayersElo
 from analysis.analysis import analyse_predictions, compare_predictions_accuracy
+from typing import Tuple
+from elo.eloXmonths import set_last9m_court_elo_dataframe
 
 # LOAD DATA
-def get_data(is_atp: bool, yrstart=2019, yrend=2021) -> DataFrame:
+def get_data(is_atp: bool, yrstart=2019, yrend=2022) -> DataFrame:
     """
     Args:
         is_atp (bool):
@@ -88,8 +90,12 @@ def get_data(is_atp: bool, yrstart=2019, yrend=2021) -> DataFrame:
     return dfMatches
 
 
+def create_features(df: DataFrame):
+    pass
+
+
 if __name__ == "__main__":
-    playersElo = PlayersElo.deserialize("./results/AllElo.json")
+    playersElo = PlayersElo.deserialize("./results/AllElos.json")
     if playersElo == None:
         playersElo: PlayersElo = {}
         # create/build the matches and elo files
@@ -142,7 +148,7 @@ if __name__ == "__main__":
         # save a dataframe with all matches and Elo rating of each player for the matches
         df.to_csv("./results/dfWithElos.csv")
         # save the historical rating for each player
-        PlayersElo.serialize(playersElo, "./results/AllElo.json")
+        PlayersElo.serialize(playersElo, "./results/AllElos.json")
 
     dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
     # show 2021 end of year ratings
@@ -158,9 +164,28 @@ if __name__ == "__main__":
     # Only Completed matches
     dfWithElos = dfWithElos[dfWithElos["IsCompleted"]]
 
-    # dont predict/test at lower levels ( ATP level only) andR1+
-    dfWithElos = dfWithElos[(dfWithElos["TrnRk"] >= 2) & (dfWithElos["TrnRk"] <= 5)]
+    # Set ELO9M
+    try:
+        dfWithElos9M = pd.read_csv("./results/dfWithElos9m.csv", parse_dates=["Date"])
+    except:
+        # dont predict/test at lower levels ( ATP level only) andR1+
+        dfWithElosATPmain = dfWithElos[
+            (dfWithElos["TrnRk"] >= 2)
+            & (dfWithElos["TrnRk"] <= 5)
+            & (dfWithElos["RoundId"] >= 4)
+        ]
+        df_toupdate_9m = dfWithElosATPmain.copy().loc[
+            dfWithElosATPmain["Date"] > datetime(2014, 12, 20)
+        ]
+        dfWithElos9M = set_last9m_court_elo_dataframe(
+            df_toupdate_9m, dfWithElos, playersElo
+        )
+    p: PlayerElo = playersElo[14177]
+    p.get_elo_court_cat_lastXmonths(datetime(2021, 12, 4), dfWithElos, 9)
 
-    compare_predictions_accuracy(dfWithElos)
-    analyse_predictions(dfWithElos)
-    analyse_out_periods_predictions(dfWithElos)
+    # dfWithElos9M = dfWithElos9M[dfWithElos9M.CourtId == 1]
+    compare_predictions_accuracy(dfWithElos9M)
+    analyse_predictions(dfWithElos9M)
+    analyse_out_periods_predictions(dfWithElos9M)
+
+    create_features(dfWithElos9M)
