@@ -182,54 +182,25 @@ class PlayerElo:
         else:
             raise Exception("incorrect value for idcourt_cat")
 
-    def get_Elo_since(
-        self,
-        df_list_matches: DataFrame,
-        idcourt_cat: int,
-        date_start: datetime,
-        date_end: datetime,
-    ) -> float:
-        """[summary]
+    def get_peak_Elo(self, dateend: datetime) -> Tuple[int, int]:
+        """
+            Get the peak Elo and the number of days since that
 
         Args:
-            df_list_matches (DataFrame): [description]
-            idcourt_cat(int): id court category (0=all, 1=clay, 2=non clay)
-            surface_ids (list[int]): [description]
-            date_start (datetime): date start (included)
-            date_end (datetime): date end (included)
+            playerid (int): player to look for
+            dateend (datetime): Date of the match, don't look for peak elo after that
+            df (DataFrame): Full dataframe to look for previous elo and determine the peak
 
         Returns:
-            float: [description]
+            Tuple[int, int]:
+            - value peak elo
+            - days since peak elo
         """
-        query = "(P1Id==" + self.id + " | P2Id==" + self.id + ")"
-        if date_start != None:
-            query += "& (Date >= " + date_start + " & Date <= " + date_end + ")"
-        df_filtered = df_list_matches.query(query)
-        # TODO
-        rank = -1
-        playerfilteredElo = PlayerElo(name=self.name, id=self.id, rank=-1)
-        """df_filtered.apply(
-            lambda row: temp(
-                playersElo,
-                row.name,
-                row["P1"],
-                row["P1Id"],
-                row["Rk1"],
-                row["P2"],
-                row["P2Id"],
-                row["Rk2"],
-                row["SetsP1"],
-                row["SetsP2"],
-                row["TrnRk"],
-                row["RoundId"],
-                row["Date"],
-                row["IsCompleted"],
-                isatp,
-                True,
-                True,
-            )
-        )"""
-        return 0
+        maxi = max(self.eloratings, key=self.eloratings.get)
+        date = PlayersElo.get_datetime(int(maxi))
+        if date == None:
+            pass
+        return self.eloratings[maxi], PlayersElo.get_datetime(int(maxi))
 
     def add_rating(
         self,
@@ -859,9 +830,12 @@ class PlayersElo:
             myelodate (int): ELO date format "YYYYMMDDn" with n=index of match of the day
 
         Returns:
-            datetime: [description]
+            datetime: can be None if myelodate==-1
         """
-        return datetime.strptime(str(myelodate)[:-1], "%Y%m%d")
+        if str(myelodate) == "-1":
+            return None
+        else:
+            return datetime.strptime(str(myelodate)[:-1], "%Y%m%d")
 
     @staticmethod
     def get_date_eloformat(date: datetime) -> int:

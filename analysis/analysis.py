@@ -20,6 +20,10 @@ def compare_predictions_accuracy(df: DataFrame):
         df_elocourt[df_elocourt["Elo1Court"] >= df_elocourt["Elo2Court"]]
     )
     elo_court = 100 * elo_exact_court / (len(df_elocourt) + 1)
+    # Elo ranking
+    df_elo = df[(df["nbElo1"] >= 50) & (df["nbElo2"] >= 50)]
+    elo_exact_peak = len(df_elo[df_elo["PeakElo1"] >= df_elo["PeakElo2"]])
+    elo_peak = 100 * elo_exact / (len(df_elo) + 1)
     # Elo ranking+court
     df_elomixed = df[(df["nbElo1Court"] >= 50) & (df["nbElo2Court"] >= 50)]
     elo_exact_mixed = len(
@@ -65,12 +69,13 @@ def compare_predictions_accuracy(df: DataFrame):
         "Best ATP ranking",
         "Best Elo ranking",
         "Best Elo Court",
-        "Best Mixed Elo",
         "Best RecentElo",
+        "Best PeakElo",
+        "Best Mixed Elo",
         "Best Mixed2 Elo",
         "Best Odds",
     ]
-    values = [atp, elo, elo_court, elo_mixed, elo_court9m, elo_mixed2, book]
+    values = [atp, elo, elo_court, elo_peak, elo_court9m, elo_mixed, elo_mixed2, book]
     xaxis_label = "% of matches correctly predicted"
     title = (
         "Prediction of all ATP main draw matches since 2015 <br> ("

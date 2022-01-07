@@ -28,6 +28,7 @@ from elo.elorating import PlayerElo, PlayersElo
 from analysis.analysis import analyse_predictions, compare_predictions_accuracy
 from typing import Tuple
 from elo.eloXmonths import set_last9m_court_elo_dataframe
+from elo.elopeak import set_peak_elo
 
 # LOAD DATA
 def get_data(is_atp: bool, yrstart=2019, yrend=2022) -> DataFrame:
@@ -164,7 +165,7 @@ if __name__ == "__main__":
     # Only Completed matches
     dfWithElos = dfWithElos[dfWithElos["IsCompleted"]]
 
-    # Set ELO9M
+    # Set/Load ELO9M
     try:
         dfWithElos9M = pd.read_csv("./results/dfWithElos9m.csv", parse_dates=["Date"])
     except:
@@ -180,12 +181,21 @@ if __name__ == "__main__":
         dfWithElos9M = set_last9m_court_elo_dataframe(
             df_toupdate_9m, dfWithElos, playersElo
         )
+    # Set/Load PEAK Elo
+    try:
+        dfWithElos9M_peak = pd.read_csv(
+            "./results/dfWithElos9m_peak.csv", parse_dates=["Date"]
+        )
+    except:
+        dfWithElos9M_peak = set_peak_elo(dfWithElos9M, playersElo)
+
     p: PlayerElo = playersElo[14177]
+    p.get_peak_Elo(datetime(2021, 12, 4))  # 1742.8 datetime(2020,9,2)
     p.get_elo_court_cat_lastXmonths(datetime(2021, 12, 4), dfWithElos, 9)
 
     # dfWithElos9M = dfWithElos9M[dfWithElos9M.CourtId == 1]
-    compare_predictions_accuracy(dfWithElos9M)
-    analyse_predictions(dfWithElos9M)
-    analyse_out_periods_predictions(dfWithElos9M)
+    compare_predictions_accuracy(dfWithElos9M_peak)
+    analyse_predictions(dfWithElos9M_peak)
+    analyse_out_periods_predictions(dfWithElos9M_peak)
 
     create_features(dfWithElos9M)
