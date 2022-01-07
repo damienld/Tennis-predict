@@ -83,6 +83,15 @@ Eventually, we compare the **accuracy of the following methods** to predict the 
 - ROI vs style of player
 - Trn history
 ..
+### 4.1 Adding Elo Court and Recent Elo
+When looking at court(surface) by court analysis we will just divide them between clay and non clay (hard, indoor, grass, carpet) because there is not enough matches on grass for example to make a proper elo rating. The exact surface will be take into account later using another feature.
+- Elo Court is an elo rating where we just take into account the matches played for all players on a specific surface (either clay or non clay)
+- Recent Elo (9 months) is made of:
+   - the intial rating of the player: his rating at the time of the first match (mixed rating between overall elo rating and court elo rating)
+   - the number of matches played for ELO is set to 0 and incremented for each set taken into account
+   - the Elo rating for last 9 months on court: applied set by set using the mixed rating(avg of overall rating and court rating) of the opponent
+
+![](https://github.com/damienld/Tennis-predict/blob/main/img/readme/accuracy_by_methods_2.png)
 
 ## 5 - Preprocessing
 - Standardization
