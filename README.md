@@ -90,7 +90,9 @@ When looking at court(surface) by court analysis we will just divide them betwee
    - the intial rating of the player: his rating at the time of the first match (mixed rating between overall elo rating and court elo rating)
    - the number of matches played for ELO is set to 0 and incremented for each set taken into account
    - the Elo rating for last 9 months on court: applied set by set using the mixed rating(avg of overall rating and court rating) of the opponent
-
+- The results are displayed below, and includes:
+    - mixed elo: average of Elo and Elo Court
+    - mixed elo 2:  average of Elo, Recent Elo and Elo Court
 ![](https://github.com/damienld/Tennis-predict/blob/main/img/readme/accuracy_by_methods_2.png)
 
 ## 5 - Preprocessing
