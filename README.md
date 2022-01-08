@@ -72,16 +72,20 @@ Eventually, we compare the **accuracy of the following methods** to predict the 
 ![](https://github.com/damienld/Tennis-predict/blob/main/img/readme/accuracy_by_methods_1.png)
 
 ## 4 - Add extra features (ToDo)
+Features
 - ELO Rating by Surface (Clay and NonClay)
 - Recent ELO
 - Peak ELO with date
+- ROI last 3 weeks + Nb matches
+- Cumulated Fatigue
+- ROI H2H
+- ROI vs style of player
+- Trn history
+
+Improvements:
 - update not just the Elo rating when managing long periods out BUT also the K-Factor as there is more doubt about that value
 - Test the different settings to find the most efficient one (KCoeffOpp, startingElo, KFactor when player out..)
 - Elo depending on score gap
-- Cumulated Fatigue
-- H2H
-- ROI vs style of player
-- Trn history
 ..
 ### 4.1 Adding Elo Court and Recent Elo
 When looking at court(surface) by court analysis we will just divide them between clay and non clay (hard, indoor, grass, carpet) because there is not enough matches on grass for example to make a proper elo rating. The exact surface will be take into account later using another feature.
