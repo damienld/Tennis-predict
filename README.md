@@ -71,11 +71,20 @@ Eventually, we compare the **accuracy of the following methods** to predict the 
 
 ![](https://github.com/damienld/Tennis-predict/blob/main/img/readme/accuracy_by_methods_1.png)
 
-## 4 - Add extra features (ToDo)
+## 4 - Complete the features list(ToDo)
 Features
-- ELO Rating by Surface (Clay and NonClay)
-- Recent ELO
-- Peak ELO with date
+- Assessing Players Global Level:
+    - ELo Rating + #sets 
+    - ELO Rating by Surface (Clay and NonClay) + #sets
+    - Peak ELO + days since
+- Assessing Players current Form
+    - Recent ELO (last 9 months on court category)
+    - Build Last 21 days rating: (+ retirement/wo as -1)
+        - from odds => calc proba set
+        - from proba set => calc expected serv and retrn points %
+        - compare both with actual
+     OR
+     - add up ELO gaines last 21 days matches (+ retirement/wo as -1)
 - Elo gained on court last 3 weeks weighted by date
 - ROI last 3 weeks + Nb matches
 - Cumulated Fatigue
