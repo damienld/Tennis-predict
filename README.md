@@ -76,6 +76,7 @@ Features
 - ELO Rating by Surface (Clay and NonClay)
 - Recent ELO
 - Peak ELO with date
+- Elo gained on court last 3 weeks weighted by date
 - ROI last 3 weeks + Nb matches
 - Cumulated Fatigue
 - ROI H2H
