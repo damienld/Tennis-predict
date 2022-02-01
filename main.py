@@ -27,13 +27,14 @@ from analysis.out_periods_elo import analyse_out_periods_predictions
 from elo.elorating import PlayerElo, PlayersElo
 from analysis.analysis import analyse_predictions, compare_predictions_accuracy
 from typing import Tuple
-from elo.elodataframe import set_last9m_court_elo_dataframe
+from elo.elodataframe import apply_elo, set_last9m_court_elo_dataframe
 from elo.elopeak import set_peak_elo
 from elo.elodataframe import apply_mixed_elo
 
 # LOAD DATA
-def get_data(is_atp: bool, yrstart=2019, yrend=2022) -> DataFrame:
-    """
+def load_data(is_atp: bool, yrstart=2019, yrend=2022) -> DataFrame:
+    """Load all yearly CSV files to build one dataframe
+
     Args:
         is_atp (bool):
         yrstart (int, optional): Defaults to 2019.
@@ -59,29 +60,32 @@ def get_data(is_atp: bool, yrstart=2019, yrend=2022) -> DataFrame:
         dfyear.Date = pd.to_datetime(dfyear.Date, format="%d/%m/%y %H:%M:%S")
         dfMatches = pd.concat([dfMatches, dfyear], axis=0)
     # drop useless rows
-    dfMatches = dfMatches.drop(
-        [
-            "TrnSite",
-            "TrnSpeed",
-            "TrnSpeedNb",
-            "Round",
-            "Player",
-            "AceRatePlayer",
-            "Srv1PtsP1",
-            "Srv2PtsP1",
-            "Srv1PtsWonP1",
-            "Srv2PtsWonP1",
-            "StatusP1",
-            "StatusP2",
-            "AvgAceRateP",
-            "AvgAceRateOpp",
-            "AvgPtsWonServ",
-            "AvgPtsWonRetrnOpp",
-            "IsEnoughData3",
-            "IsValidData",
-        ],
-        axis=1,
-    )
+    try:
+        dfMatches = dfMatches.drop(
+            [
+                "TrnSite",
+                "TrnSpeed",
+                "TrnSpeedNb",
+                "Round",
+                "Player",
+                "AceRatePlayer",
+                "Srv1PtsP1",
+                "Srv2PtsP1",
+                "Srv1PtsWonP1",
+                "Srv2PtsWonP1",
+                "StatusP1",
+                "StatusP2",
+                "AvgAceRateP",
+                "AvgAceRateOpp",
+                "AvgPtsWonServ",
+                "AvgPtsWonRetrnOpp",
+                "IsEnoughData3",
+                "IsValidData",
+            ],
+            axis=1,
+        )
+    except:
+        pass
     # from 2 rows by match to only 1 row
     dfMatches = dfMatches[dfMatches["IndexP"] == 0]
     # sort by Date and Rounds to get the right order in case 2 matches played on the same day
@@ -92,72 +96,57 @@ def get_data(is_atp: bool, yrstart=2019, yrend=2022) -> DataFrame:
     return dfMatches
 
 
+isatp = True
+
+
+def load_playersElo(
+    isatp: bool, initial_df: DataFrame, path: str = "./results/"
+) -> Tuple[PlayersElo, DataFrame]:
+    """Either Load from file OR Rebuild it:
+    - playersElo: dictionnary of historical Elo ratings info for all players
+    - df: a dataframe with all Elo info added to each match/row
+    If one the files doesn't exist then both are fully rebuilt.
+    Args:
+        isatp (bool): [description]
+        initial_df (DataFrame): Only needed if we are rebuilding the files
+    Returns:
+        Tuple[PlayersElo, DataFrame]: [description]
+    """
+    playersElo = PlayersElo.deserialize(path + "AllElos.json")
+    dfWithElos = None
+    try:
+        dfWithElos = pd.read_csv(path + "/dfWithElos.csv", parse_dates=["Date"])
+    except:
+        pass
+    # if one of the files is not already built
+    if playersElo == None or len(dfWithElos) <= 0:
+        # rebuild both files
+        playersElo: PlayersElo = {}
+        # create/build the matches and elo files
+        dfWithElos = initial_df
+        dfWithElos, playersElo = apply_elo(dfWithElos, {}, isatp)
+        dfWithElos = apply_mixed_elo(dfWithElos)
+        # save a dataframe with all matches and Elo rating of each player for the matches
+        dfWithElos.to_csv(path + "dfWithElos.csv")
+        # save the historical rating for each player
+        PlayersElo.serialize(playersElo, path + "AllElos.json")
+    # relaod the data fromt he saved file
+    # playersElo = PlayersElo.deserialize("./results/AllElos.json")
+    return playersElo, dfWithElos
+
+
 def create_features(df: DataFrame):
     pass
 
 
 if __name__ == "__main__":
-    playersElo = PlayersElo.deserialize("./results/AllElos.json")
-    if playersElo == None:
-        playersElo: PlayersElo = {}
-        # create/build the matches and elo files
-        isatp = True
-        df = get_data(isatp, 2013, 2021)
-
-        (
-            df["Elo1"],
-            df["nbElo1"],
-            df["EloAfter1"],
-            df["DaysLastElo1"],
-            df["Elo2"],
-            df["nbElo2"],
-            df["EloAfter2"],
-            df["DaysLastElo2"],
-            df["ProbaElo"],
-            df["Elo1Court"],
-            df["nbElo1Court"],
-            df["EloAfter1Court"],
-            df["DaysLastElo1Court"],
-            df["Elo2Court"],
-            df["nbElo2Court"],
-            df["EloAfter2Court"],
-            df["DaysLastElo2Court"],
-            df["ProbaEloCourt"],
-        ) = zip(
-            *df.apply(
-                lambda row: PlayerElo.update_elos_matches(
-                    playersElo,
-                    row["P1"],
-                    row["P1Id"],
-                    row["Rk1"],
-                    row["P2"],
-                    row["P2Id"],
-                    row["Rk2"],
-                    row["SetsP1"],
-                    row["SetsP2"],
-                    row["TrnRk"],
-                    row["RoundId"],
-                    row["CourtId"],
-                    row["Date"],
-                    row["IsCompleted"],
-                    isatp,
-                    True,
-                    True,
-                ),
-                axis=1,
-            )
-        )
-        df = apply_mixed_elo(df)
-        # save a dataframe with all matches and Elo rating of each player for the matches
-        df.to_csv("./results/dfWithElos.csv")
-        # save the historical rating for each player
-        PlayersElo.serialize(playersElo, "./results/AllElos.json")
-
-    dfWithElos = pd.read_csv("./results/dfWithElos.csv", parse_dates=["Date"])
+    print("hello")
+    initial_df = load_data(isatp, 2013, 2021)
+    playersElo, dfWithElos = load_playersElo(isatp, initial_df)
     # show 2021 end of year ratings
     print("-----" + str(2021) + "-----")
     playersEloYr = PlayersElo.filterplayersratings_byyear(0, playersElo, 2021)
-    # PlayersElo.get_latest_ranking_year(playersEloYr)
+    PlayersElo.get_latest_ranking_year(playersEloYr)
     print("-----" + str(2021) + " CLAY -----")
     # PlayersElo.get_latest_ranking_year(playersEloYr, 1)
 
@@ -166,6 +155,7 @@ if __name__ == "__main__":
 
     # Only Completed matches
     dfWithElos = dfWithElos[dfWithElos["IsCompleted"]]
+    dfWithElos9M = dfWithElos
 
     # Set/Load ELO9M
     try:
@@ -193,10 +183,13 @@ if __name__ == "__main__":
         dfWithElos9M_peak = set_peak_elo(dfWithElos9M, playersElo)
 
     # test
-    p: PlayerElo = playersElo[14177]
-    p.get_peak_Elo(datetime(2021, 12, 4))  # 1742.8 datetime(2020,9,2)
-    p.get_elo_court_cat_lastXmonths(datetime(2021, 12, 4), dfWithElos, 9)
+    # p: PlayerElo = playersElo[14177]
+    # p.get_peak_Elo(datetime(2021, 12, 4))  # 1742.8 datetime(2020,9,2)
+    # p.build_elo_court_cat_lastXmonths(datetime(2021, 12, 4), dfWithElos, 9)
 
+    dfWithElos9M_peak = dfWithElos9M_peak[
+        dfWithElos9M_peak["TrnRk"].isin([2, 3, 4, 5])
+    ]  # no slam
     # dfWithElos9M = dfWithElos9M[dfWithElos9M.CourtId == 1]
     compare_predictions_accuracy(dfWithElos9M_peak)
     analyse_predictions(dfWithElos9M_peak)

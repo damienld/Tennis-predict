@@ -7,30 +7,97 @@ from datetime import datetime
 
 from pandas.core.frame import DataFrame
 from elo.elorating import PlayersElo, PlayerElo
-from main import get_data
+from main import load_data
 import pandas as pd
-import typing
+import pytest
+import main
 
-# @pytest.fixture  # (scope="session", autouse=True)
-def get_dftest() -> DataFrame:
+
+@pytest.fixture
+def load_dftest() -> DataFrame:
     try:
-        df = pd.read_csv("./results/dfTest.csv")
+        df = pd.read_csv("./tests/df.csv")
         df.Date = pd.to_datetime(df.Date, format="%d/%m/%y %H:%M:%S")
     except:
-        df = get_data(True, 2013, 2013)
-        df = df.query("(P1Id==673 | P2Id==673)")
-        df.to_csv("./results/dfTest.csv")
+        df = load_data(True, 2014, 2014)
+        # df = df.query("(P1Id==673 | P2Id==673)")  # David Ferrer
+        df.to_csv("./tests/df.csv")
+        df.Date = pd.to_datetime(df.Date, format="%d/%m/%y %H:%M:%S")
     return df
 
 
-def test_file_test():
-    df = get_dftest()
+@pytest.fixture
+def loadPlayers_elos(dftest: DataFrame) -> PlayersElo:
+    try:
+        playersElo = PlayersElo.deserialize("./tests/AllElo.json")
+        dftest.to_csv("./tests/dfWithElos.csv")
+    except:
+        playersElo: PlayersElo = {}
+        # create/build the matches and elo files
+        isatp = True
+        (
+            dftest["Elo1"],
+            dftest["nbElo1"],
+            dftest["EloAfter1"],
+            dftest["DaysLastElo1"],
+            dftest["Elo2"],
+            dftest["nbElo2"],
+            dftest["EloAfter2"],
+            dftest["DaysLastElo2"],
+            dftest["ProbaElo"],
+            dftest["Elo1Court"],
+            dftest["nbElo1Court"],
+            dftest["EloAfter1Court"],
+            dftest["DaysLastElo1Court"],
+            dftest["Elo2Court"],
+            dftest["nbElo2Court"],
+            dftest["EloAfter2Court"],
+            dftest["DaysLastElo2Court"],
+            dftest["ProbaEloCourt"],
+        ) = zip(
+            *dftest.apply(
+                lambda row: PlayerElo.update_elos_matches(
+                    playersElo,
+                    row["P1"],
+                    row["P1Id"],
+                    row["Rk1"],
+                    row["P2"],
+                    row["P2Id"],
+                    row["Rk2"],
+                    row["SetsP1"],
+                    row["SetsP2"],
+                    row["TrnRk"],
+                    row["RoundId"],
+                    row["CourtId"],
+                    row["Date"],
+                    row["IsCompleted"],
+                    isatp,
+                    True,
+                    True,
+                ),
+                axis=1,
+            )
+        )
+        # player: PlayerElo = playersElo.get(673, None)
+        dftest.to_csv("./tests/dfWithElos.csv")
+        # save the historical rating for each player
+        PlayersElo.serialize(playersElo, "./tests/AllElo.json")
+
+    return df
+
+
+def test_load_dftest(load_dftest):
+    df = load_dftest()
     assert len(df) > 50 and type(list(df.loc[:, "Date"])[0]) == pd.Timestamp
 
 
 class Test_Elo:
-    def test_elo_1(self):
-        df = get_dftest()
+    def test_get_elo_court_cat_lastXmonths():
+        p: PlayerElo = playersElo[673]
+        p.build_elo_court_cat_lastXmonths(datetime(2014, 12, 10), 1, 6)
+
+    def test_set_elos(self, get_dftest):
+        df = get_dftest
         playersElo: PlayersElo = {}
         # create/build the matches and elo files
         isatp = True
@@ -78,12 +145,14 @@ class Test_Elo:
             )
         )
         player: PlayerElo = playersElo.get(673, None)
-        # df.to_csv("./results/dfTestWithElo.csv")
+        df.to_csv("./results/dfTestWithElo.csv")
+        # save the historical rating for each player
+        PlayersElo.serialize(playersElo, "./results/AllElo.json")
         # TODO
         # assert(player.)
 
     def test_update_elos_matches(self):
-        df = get_dftest()
+        df = load_dftest()
         isatp = True
         row = df.iloc[0]
         playersElo: PlayersElo = {}
@@ -142,3 +211,8 @@ class Test_Elo:
 def test_get_datetime():
     res = PlayersElo.get_datetime(202111041)
     assert res == datetime(2021, 11, 4)
+
+
+def test_get_date_eloformat():
+    res = PlayersElo.get_date_eloformat(datetime(2021, 11, 4))
+    assert res == 202111040

@@ -9,10 +9,17 @@ def set_peak_elo_match(row, playersElo: DataFrame) -> Tuple[float, int, float, i
     print(row["Date"])
     # last 9M
     p1: PlayerElo = playersElo[row["P1Id"]]
-    elopeak1, daysince1 = p1.get_peak_Elo(row["Date"])
+    elopeak1, date1 = p1.get_peak_Elo(row["Date"])
     p2: PlayerElo = playersElo[row["P2Id"]]
-    elopeak2, daysince2 = p2.get_peak_Elo(row["Date"])
-    return elopeak1, daysince1, elopeak2, daysince2
+    elopeak2, date2 = p2.get_peak_Elo(row["Date"])
+    dayssincedate1 = -1
+    dayssincedate2 = -1
+    if date1 != None:
+        dayssincedate1 = (row["Date"] - date1).days
+    if date2 != None:
+        dayssincedate2 = (row["Date"] - date2).days
+
+    return elopeak1, dayssincedate1, elopeak2, dayssincedate2
 
 
 def set_peak_elo(df: DataFrame, playersElo) -> DataFrame:

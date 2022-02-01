@@ -2,7 +2,7 @@ import pandas as pd
 from pandas import DataFrame
 from typing import Tuple
 
-def calc_kelly_stake(myproba:float, odds: float, minstake=0.5, maxstake=2.5)->float:
+def calc_kelly_stake(myproba:float, odds: float, minstake=0.5, maxstake=1.5)->float:
     """Calculate the stake associated to the value of the bet
 
     Args:
@@ -29,7 +29,7 @@ def apply_roi(oddsP1: float, oddsP2: float, predictionP1win: float, result: int)
         result (int): 0=P1 won, 1=P2 won
 
     Returns: Tuple
-        (int): The stake in units (0 to 2.5u)
+        (int): The stake in units (0 to 1.5u)
         (float): The net benefit for this bet
     """
     isP1won = result==0
@@ -45,6 +45,11 @@ def apply_roi(oddsP1: float, oddsP2: float, predictionP1win: float, result: int)
         indexbet = 0
     else:#(stakeP1 < stakeP2):
         indexbet = 1
+    """if indexbet == 0 and oddsP1 >= minOdds:
+        return (0,0) 
+    if indexbet == 1 and oddsP2 >= minOdds:
+        return (0,0) 
+    """
     match (isP1won):
         case True:
             #p1 won

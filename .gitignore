@@ -17,3 +17,7 @@ tests/df.csv
 results/dfWithElos9m.csv
 results/AllElos.json
 results/dfWithElos9m_peak.csv
+results/~$predictions.xlsx
+results/predictions.xlsx
+results/match/dfWithElos9m_peak.csv
+results/match/predictions.csv

@@ -42,28 +42,38 @@ def test_get_latest_rating_2():
 
 
 def test_getKcoeff_1():
-    k = PlayerElo.get_Kcoeff(0, 1000, 6, 2, False)
+    k = PlayerElo.get_Kcoeff(0, 1000, 6, 2)
     assert round(k) == 131
 
 
 def test_getKcoeff_2():
-    k = PlayerElo.get_Kcoeff(300, 1000, 2, 6, False)
-    assert round(k) == 25
+    k = PlayerElo.get_Kcoeff(300, 1000, 5, 2)
+    assert round(k) == 24
 
 
 def test_getKcoeff_3():
-    k = PlayerElo.get_Kcoeff(0, 10, 6, 2, False)
-    assert round(k) == 26
+    k = PlayerElo.get_Kcoeff(0, 1000, 5, 2)
+    assert round(k) == round(131.3 * 0.95)
 
 
 def test_getKcoeff_4():
-    k = PlayerElo.get_Kcoeff(0, 10, 5, 2, False)
-    assert round(k) == 25
+    k = PlayerElo.get_Kcoeff(0, 1000, 6, 1)
+    assert round(k) == round(131.3 * 0.6)
 
 
 def test_getKcoeff_5():
-    k = PlayerElo.get_Kcoeff(0, 10, 5, 1, False)
-    assert round(k) == 25 * 0.85
+    k = PlayerElo.get_Kcoeff(0, 100, 6, 2)
+    assert round(k) == 131
+
+
+def test_getKcoeff_6():
+    k = PlayerElo.get_Kcoeff(0, 5, 6, 2)
+    assert round(k) == 13
+
+
+def test_getKcoeff_7():
+    k = PlayerElo.get_Kcoeff(0, 50, 6, 2)
+    assert round(k) == 66
 
 
 def test___get_new_elo_ratings_1():

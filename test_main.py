@@ -7,5 +7,5 @@ import main
 
 
 def test_get_data():
-    df = main.get_data(True, 2020, 2020)
+    df = main.load_data(True, 2020, 2020)
     assert len(df) > 0

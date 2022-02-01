@@ -8,6 +8,8 @@ from tennis.tennis_common import calc_datediff_withoutoffseason
 from collections import namedtuple
 import numpy as np
 
+from tennis.tennis_probas import get_match_proba_bo5
+
 # from dataclasses import dataclass, field
 
 MatchDetails = namedtuple(
@@ -37,7 +39,7 @@ class PlayerElo:
     min_day_outperiod = 55
     isAtp = True
 
-    def __init__(self, name: str, id: str, rank: int):
+    def __init__(self, name: str, id: str):  # , rank: int):
         self.id = id
         self.name = name
         # comment the 2 lines below in order to start with a rating associated to current player rank
@@ -78,16 +80,49 @@ class PlayerElo:
             avg_nb = nb_elo_court_cat
         return avg_elo, avg_nb
 
-    def get_elo_court_cat_lastXmonths(
-        self, dateend: datetime, df: DataFrame, months: int = 9
+    @staticmethod
+    def get_elo_from_mixed2(
+        elo: float,
+        elo_court_cat: float,
+        nb_elo_court_cat: int,
+        elo_court9M: float,
+        nb_elo_court9M: int,
+    ) -> Tuple[float, int]:
+        """Mix Elo rating, Elo rating on court_cat and Elo9M
+        Args:
+            elo (float): [description]
+            elo_court_cat (float): [description]
+            nb_elo_court_cat (int): [description]
+
+        Returns: Tuple
+            - float: Mixed ELO if enough match on court_cat (else just overall Elo)
+            - int: Number of matches/sets taken into account on court_cat
+        """
+        if nb_elo_court_cat >= PlayerElo.coeff_KCoeff_opp / 2:
+            if nb_elo_court9M < 20:
+                avg_elo = (elo + elo_court_cat) / 2
+                avg_nb = nb_elo_court_cat
+            else:
+                avg_elo = (elo + elo_court_cat + elo_court9M) / 3
+                avg_nb = nb_elo_court9M
+        else:
+            avg_elo = elo
+            avg_nb = nb_elo_court_cat
+        return avg_elo, avg_nb
+
+    def build_elo_court_cat_lastXmonths(
+        self, dateend: datetime, df_to_look_for_results: DataFrame, months: int = 9
     ) -> Tuple[int, int, int]:
         # get date - 9M in date_elo format YYYYMMDDn
         date_start = dateend + timedelta(days=round(-months * 30.5))
         # filter df to get the matches
-        df = df.loc[
-            (df["Date"] >= date_start.strftime("%Y-%m-%d"))
-            & (df["Date"] < dateend.strftime("%Y-%m-%d"))
-            & ((df["P1Id"] == self.id) | (df["P2Id"] == self.id))
+        df_to_look_for_results = df_to_look_for_results.loc[
+            (df_to_look_for_results["Date"] >= date_start.strftime("%Y-%m-%d"))
+            & (df_to_look_for_results["Date"] < dateend.strftime("%Y-%m-%d"))
+            & (
+                (df_to_look_for_results["P1Id"] == self.id)
+                | (df_to_look_for_results["P2Id"] == self.id)
+            )
             # & ((df["P1Id"] == str(self.id)) | (df["P2Id"] == str(self.id)))
         ]
         # filter dict self.eloratings_<court_cat> where ( date_elo >= (date - 9M) )
@@ -103,16 +138,16 @@ class PlayerElo:
         ]"""
         # init starting ELO
         nb_last9m = 0
-        if len(df) > 0:
+        if len(df_to_look_for_results) > 0:
             indexplayer: str = "1"
-            if df.iloc[0]["P2Id"] == self.id:
+            if df_to_look_for_results.iloc[0]["P2Id"] == self.id:
                 indexplayer = "2"
-            elo_last9m = df.iloc[0]["Elo" + indexplayer]
+            elo_last9m = df_to_look_for_results.iloc[0]["Elo" + indexplayer]
         else:
             elo_last9m = 1500
         # loop each match for last 9M
         print(self.name + "-9M start:" + str(elo_last9m))
-        for idx, row in df.iterrows():
+        for idx, row in df_to_look_for_results.iterrows():
             indexopp = "1"
             indexp = "2"
             if row["P1Id"] == self.id:
@@ -160,6 +195,65 @@ class PlayerElo:
                 )
         return (elo_last9m, nb_last9m)
 
+    def get_lastXdays_elo_gain(
+        self, dateend: datetime, df_to_look_for_results: DataFrame, days: int
+    ) -> Tuple[int, int, int]:
+        # get date - 9M in date_elo format YYYYMMDDn
+        date_start = dateend + timedelta(days=-days)
+        # filter df to get the matches
+        df_to_look_for_results = df_to_look_for_results.loc[
+            (df_to_look_for_results["Date"] >= date_start.strftime("%Y-%m-%d"))
+            & (df_to_look_for_results["Date"] < dateend.strftime("%Y-%m-%d"))
+            & (
+                (df_to_look_for_results["P1Id"] == self.id)
+                | (df_to_look_for_results["P2Id"] == self.id)
+            )
+            # & ((df["P1Id"] == str(self.id)) | (df["P2Id"] == str(self.id)))
+        ]
+        print(
+            self.name
+            + "-{}d start: ".format(str(days))
+            + date_start.strftime("%Y-%m-%d")
+        )
+        score = 0
+        # loop each match for last 30 days
+        for idx, row in df_to_look_for_results.iterrows():
+            indexopp = "1"
+            indexp = "2"
+            if row["P1Id"] == self.id:
+                indexopp = "2"
+                indexp = "1"
+
+            is_retirement = "ret." in row["Result"] or "w/o" in row["Result"]
+            """if match_details.is_completed:
+                nb_last9m += match_details.sets1 + match_details.sets2
+                elo_opp, elo_nb_opp = PlayerElo.get_elo_from_mixed(
+                    match_details.opp_elo,
+                    match_details.opp_elo_c,
+                    match_details.opp_elo_nb_c,
+                )
+                elo_last9m = self.get_new_elo_ratings_setbyset(
+                    elo_last9m,
+                    elo_opp,
+                    nb_last9m,
+                    elo_nb_opp,
+                    match_details.sets1,
+                    match_details.sets2,
+                    match_details.trn_rk,
+                    match_details.round,
+                )[0]
+                print(
+                    "{}-{} v {} {}({})=>{}".format(
+                        (match_details.sets1),
+                        match_details.sets2,
+                        row["P" + indexopp],
+                        elo_opp,
+                        elo_nb_opp,
+                        elo_last9m,
+                    )
+                )"""
+        return (0, 0, 0)
+
     def __get_ratings_dict(self, idcourt_cat: int) -> dict:
         if idcourt_cat == 0:
             return self.eloratings
@@ -180,7 +274,7 @@ class PlayerElo:
         else:
             raise Exception("incorrect value for idcourt_cat")
 
-    def get_peak_Elo(self, dateend: datetime) -> Tuple[int, int]:
+    def get_peak_Elo(self, dateend: datetime) -> Tuple[int, datetime]:
         """
             Get the peak Elo and the number of days since that
 
@@ -190,14 +284,17 @@ class PlayerElo:
             df (DataFrame): Full dataframe to look for previous elo and determine the peak
 
         Returns:
-            Tuple[int, int]:
+            Tuple[int, datetime]:
             - value peak elo
-            - days since peak elo
+            - date peak elo
         """
-        maxi = max(self.eloratings, key=self.eloratings.get)
-        date = PlayersElo.get_datetime(int(maxi))
-        if date == None:
-            pass
+        dateend_int = PlayersElo.get_date_eloformat(dateend)
+        filt_Dict = {
+            key: value
+            for (key, value) in self.eloratings.items()
+            if int(key) < dateend_int
+        }
+        maxi = max(filt_Dict, key=filt_Dict.get)
         return self.eloratings[maxi], PlayersElo.get_datetime(int(maxi))
 
     def add_rating(
@@ -303,14 +400,312 @@ class PlayerElo:
             raise Exception("idcourt is not valid (must be int in [1:5])")
 
     @staticmethod
-    def update_elos_matches(
+    def get_nr_days_since_last_rating(
+        date_match, isadj_for_out_period, elo1, date_last_elo1
+    ):
+        if int(date_last_elo1) >= 0:
+            date_last_elo1 = PlayersElo.get_datetime(date_last_elo1)
+            if elo1 > 1600 and isadj_for_out_period:
+                # only check out periods for players in top 100
+                # because others might have gone to lower level rather than
+                # really being out
+                days_since_last_elo1 = calc_datediff_withoutoffseason(
+                    date_match, date_last_elo1
+                )
+                eloadj1 = PlayerElo.get_adjustment_elo_when_player_was_out(
+                    days_since_last_elo1
+                )
+                elo1 = elo1 + eloadj1
+            else:
+                days_since_last_elo1 = max(0, (date_match - date_last_elo1).days)
+        else:
+            days_since_last_elo1 = -1
+        return elo1, days_since_last_elo1
+
+    @staticmethod
+    def __get_new_elo_ratings(
+        rating1: float,
+        rating2: float,
+        aKcoeff1: float,
+        aKcoeff2: float,
+        is_player1won: bool,
+        nbsetstowinformatch: int,
+    ) -> Tuple[float, float]:
+        """Private. Calculate the new Elo ratings for both players after the match.
+
+        Args:
+            rating1 (float): [description]
+            rating2 (float): [description]
+            aKcoeff1 (float): [description]
+            aKcoeff2 (float): [description]
+            is_player1won (bool): [description]
+            nbsetstowinformatch (int):#sets to win for the match (3 or 5)
+        Returns:
+            Tuple[float, float]:
+            - New rating P1
+            - New rating P2
+        """
+        proba_match2 = PlayerElo.get_match_proba(rating1, rating2, nbsetstowinformatch)
+        proba_match1 = PlayerElo.get_match_proba(rating2, rating1, nbsetstowinformatch)
+
+        if is_player1won:
+            rating1 = rating1 + aKcoeff1 * (1 - proba_match1)
+            rating2 = rating2 + aKcoeff2 * (0 - proba_match2)
+        else:
+            rating1 = rating1 + aKcoeff1 * (0 - proba_match1)
+            rating2 = rating2 + aKcoeff2 * (1 - proba_match2)
+        return round(rating1, 1), round(rating2, 1)
+
+    @staticmethod
+    def get_new_elo_ratings_match(
+        rating1: float,
+        rating2: float,
+        nbmatches1: int,
+        nbmatches2: int,
+        is_player1_won: bool,
+        idround: int,
+        trnrk: int,
+        nbsetstowinformatch: int,
+    ) -> Tuple[float, float]:
+        """Calculate the new Elo ratings for both players after the match. Using MATCH method (not set_by_set)
+
+        Args:
+            rating1 (float): [description]
+            rating2 (float): [description]
+            nbmatches1 (int): [description]
+            nbmatches2 (int): [description]
+            is_player1_won (bool): [description]
+            idround (int): [description]
+            trnrk (int): [description]
+            nbsetstowinformatch (int):#sets to win for the match (3 or 5)
+        Returns:
+            Tuple[float, float]: [description]
+        """
+        if rating2 < 0 or rating1 < 0:
+            return rating1, rating2
+        coeffKA = PlayerElo.get_Kcoeff(nbmatches1, nbmatches2, idround, trnrk)
+        coeffKB = PlayerElo.get_Kcoeff(nbmatches2, nbmatches1, idround, trnrk)
+        return PlayerElo.__get_new_elo_ratings(
+            rating1, rating2, coeffKA, coeffKB, is_player1_won, nbsetstowinformatch
+        )
+
+    @staticmethod
+    def get_new_elo_ratings_setbyset(
+        rating1: float,
+        rating2: float,
+        nbmatches1: int,
+        nbmatches2: int,
+        nbsets_won1: int,
+        nbsets_won2: int,
+        trnrk: int,
+        idround: int,
+    ) -> Tuple[int, int]:
+        """Calculate the new Elo ratings for both players after the match. Using set_by_set method (not MATCH)
+
+        Args:
+            rating1 (float): [description]
+            rating2 (float): [description]
+            nbmatches1 (int): [description]
+            nbmatches2 (int): [description]
+            nbsets_won1 (int): [description]
+            nbsets_won2 (int): [description]
+            trnrk (int): [description]
+            idround (int): [description]
+
+        Returns:
+            Tuple[int, int]: [description]
+        """
+        # is_slam = False
+        nbsets_won1 = int(nbsets_won1)
+        nbsets_won2 = int(nbsets_won2)
+        gainToRating1 = 0
+        gainToRating2 = 0
+        for i in range(1, nbsets_won1 + 1):
+            newratings = PlayerElo.get_new_elo_ratings_match(
+                rating1,
+                rating2,
+                nbmatches1,
+                nbmatches2,
+                True,
+                trnrk,
+                idround,
+                max(nbsets_won1, nbsets_won2),
+            )
+            gainToRating1, gainToRating2 = (
+                gainToRating1 + newratings[0] - rating1,
+                gainToRating2 + newratings[1] - rating2,
+            )
+
+        for i in range(1, nbsets_won2 + 1):
+            newratings = PlayerElo.get_new_elo_ratings_match(
+                rating1,
+                rating2,
+                nbmatches1,
+                nbmatches2,
+                False,
+                trnrk,
+                idround,
+                max(nbsets_won1, nbsets_won2),
+            )
+            gainToRating1, gainToRating2 = (
+                gainToRating1 + newratings[0] - rating1,
+                gainToRating2 + newratings[1] - rating2,
+            )
+        is_bestof5sets = max(nbsets_won1, nbsets_won2) >= 3
+        if is_bestof5sets:
+            # gains ared divided by 1.5 as there is 3 sets rather than 2 sets in BO5, and 5 rather than 3
+            return round(rating1 + gainToRating1 / 1.5, 1), round(
+                rating2 + gainToRating2 / 1.5, 1
+            )
+        else:
+            return round(rating1 + gainToRating1), round(rating2 + gainToRating2, 1)
+
+    @staticmethod
+    def get_elobeforematch_orcreate(
+        listplayers: dict, name: str, id: str, idcourt_cat: int
+    ):  # , rank: int, isatp: bool
+
+        """[summary]
+
+        Args:
+            listplayers (dict): [description]
+            name (str): [description]
+            id (str): [description]
+            idcourt_cat (int): 0(all), 1 (clay) or 2 (non clay)
+            rank (int): [description]
+            isatp (bool): [description]
+
+        Returns Tuple:
+        - PlayerElo
+        - int: value of latest Elo rating
+        - int: nb matches for the calculation of this latest rating
+        - int: (-1 if no previous elo)date with format(YYYYMMDDx) where X is the match id of that day (often 0)
+        """
+        player: PlayerElo
+        player = listplayers.get(id, None)
+        if player == None:
+            # player not created yet
+            player = PlayerElo(name=name, id=id)  # , rank=rank)
+            listplayers[id] = player
+        latest_rating = player.get_latest_rating(idcourt_cat)
+        return (player, latest_rating[0], latest_rating[1], latest_rating[2])
+
+    @staticmethod
+    def get_Kcoeff(
+        nbmatches: int, nbmatchesopp: int, roundid: int, trnrk: int
+    ) -> float:
+        """[summary]
+
+        Args:
+            nbmatches (int): [description]
+            nbmatchesopp (int): set to 1000+ to ignore
+            roundid (int): [description]
+            trnrk (int): [description]
+
+        Returns:
+            float: [description]
+        """
+        # ToDo if (days_since_last_elo)
+        aCoeffK = 1
+
+        if trnrk < 2 or trnrk == 6:
+            # Level Challenger or -
+            aCoeffK = 0.6
+        if roundid == 4:
+            # Round 2 or -
+            aCoeffK = aCoeffK * 0.85
+        elif roundid == 5:
+            # Round 1
+            aCoeffK = aCoeffK * 0.95
+        elif roundid < 4:
+            # Round Q
+            aCoeffK = aCoeffK * 0.7
+        if trnrk == 4 and roundid >= 4:
+            aCoeffK *= 1.15
+
+        # 538 K-Factor https://www.betfair.com.au/hub/tennis-elo-modelling/
+        # which is 130 at start and 20 after 250 matches
+        coeffKplayer = aCoeffK * 250 / ((nbmatches + 5) ** 0.4)
+
+        if nbmatchesopp < PlayerElo.coeff_KCoeff_opp:
+            # if the ELO of the opponent is not really defined yet (less than 100 sets/matches)
+            # K factor is largely decreased (as the opp's ELO rating can't be trusted)
+            # K is divided by (for p_KCoeff_opp=50):
+            #  - 5 if 10 matches or less for opp
+            #  - 2 if 25 matches
+            #  - 1 if 50+ matches...
+            # K is divided by (for p_KCoeff_opp=100):
+            #  - 5 if 10 matches or less for opp
+            #  - 2 if 25 matches
+            #  - 1 if 50+ matches...
+            nbmatchesopp = max(nbmatchesopp, 1)
+            coeffKplayer = coeffKplayer / max(
+                1, PlayerElo.coeff_KCoeff_opp / max(nbmatchesopp, 10)
+            )
+        return coeffKplayer
+
+    @staticmethod
+    def get_elo_value_from_rank(rank, isatp: bool) -> int:
+        ranks_elo_min = ListRankEloATPMin
+        values_elo_rank = values_elo_rankATP
+        if not (isatp):
+            list = ListRankEloWTAMin
+            list2 = values_elo_rankWTA
+
+        if rank < 1 or rank >= ranks_elo_min[0]:
+            # init all players at this minimum value
+            return round(values_elo_rank[0])
+        index = 0
+        while rank < ranks_elo_min[index]:
+            index += 1
+        # valueELo will be a weighted average of the value
+        valueEloIntervallMin = 0
+        intervalMin = ranks_elo_min[0]
+        intervalMax = ranks_elo_min[index]
+        if index > 0:
+            valueEloIntervallMin = values_elo_rank[index - 1]
+            intervalMin = ranks_elo_min[index - 1]
+        valueEloIntervallMax = values_elo_rank[index]
+        valueElo = (
+            valueEloIntervallMax * (intervalMin - rank)
+            + valueEloIntervallMin * (rank - intervalMax)
+        ) / (intervalMin - intervalMax)
+        return round(valueElo)
+
+    @staticmethod
+    def get_match_proba(rating1: float, rating2: float, nbsetsforwin: int) -> float:
+        """Return the proba for player 1
+
+        Args:
+            rating1 ([float]): rating P2!
+            rating2 ([float]): rating P1!
+            nbsetsforwin (int): #sets for winning the match (3 or 5)
+        Returns:
+            float: [description]
+        """
+
+        proba = (1 + 10 ** ((rating1 - rating2) / 400.0)) ** -1
+        if nbsetsforwin == 3:
+            proba = get_match_proba_bo5(proba)
+        return proba
+
+
+########################################################################################
+########################################################################################
+########################################################################################
+########################################################################################
+
+
+class PlayersElo:
+    @staticmethod
+    def build_elos_for_match(
         players: dict,
         name1: str,
         id1: str,
-        rank1: int,
+        # rank1: int,
         name2: str,
         id2: str,
-        rank2: int,
+        # rank2: int,
         nbsets_won1: int,
         nbsets_won2: int,
         trn_rk: int,
@@ -318,7 +713,7 @@ class PlayerElo:
         idcourt: int,
         date_match: datetime,
         is_completed: bool,
-        isatp: bool,
+        # isatp: bool,
         issetbysetupdate: bool,
         isadj_for_out_period: bool,
     ):
@@ -327,10 +722,8 @@ class PlayerElo:
             players (dict): the dictionnary containing all Elo history by players. {<idP>: <PlayerElo>}. It will be used/updated.
             name1 (str): P1 name
             id1 (str): id1
-            rank1 (int): ATP Rank P1
             name2 (str): P2 name
             id2 (str): id2
-            rank2 (int): ATP Rank P2
             nbsets_won1 (int): sets won P1
             nbsets_won2 (int): sets won P2
             trn_rk (int): Trn Category/Rank
@@ -338,7 +731,6 @@ class PlayerElo:
             idcourt(int): Court Id
             date (datetime):
             is_completed (bool):
-            isatp (bool): Only used if we apply initial rating in function of the ATP Rank (Not Used atm)
             issetbysetupdate (bool): 2 modes exist for updating ELO. Either by counting just the match result or Each set.
             isadj_for_out_period (bool): True if we should update ELO for out periods (Only applied to player 1600+ Elo)
         Returns:
@@ -356,26 +748,26 @@ class PlayerElo:
         idcourt_cat = PlayerElo.get_idcourt_cat_from_idcourt(idcourt)
         # get the latest ELo rating before the match
         p1, elo1, nbelo1, date_last_elo1 = PlayerElo.get_elobeforematch_orcreate(
-            players, name1, id1, 0, rank1, isatp
+            players, name1, id1, 0  # , rank1, isatp
         )
         p2, elo2, nbelo2, date_last_elo2 = PlayerElo.get_elobeforematch_orcreate(
-            players, name2, id2, 0, rank2, isatp
+            players, name2, id2, 0  # , rank2, isatp
         )
         (
-            p1_courtcat,
+            _,
             elo1_court,
             nbelo1_court,
-            date_last_elo1_courtcat,
+            date_last_elo1_court,
         ) = PlayerElo.get_elobeforematch_orcreate(
-            players, name1, id1, idcourt_cat, rank1, isatp
+            players, name1, id1, idcourt_cat  # , rank1, isatp
         )
         (
-            p2_courtcat,
+            _,
             elo2_court,
             nbelo2_court,
-            date_last_elo2_courtcat,
+            date_last_elo2_court,
         ) = PlayerElo.get_elobeforematch_orcreate(
-            players, name2, id2, idcourt_cat, rank2, isatp
+            players, name2, id2, idcourt_cat  # , rank2, isatp
         )
 
         days_since_last_elo1 = -1
@@ -392,10 +784,10 @@ class PlayerElo:
             date_match, isadj_for_out_period, elo2, date_last_elo2
         )
         _, days_since_last_elo1_court = PlayerElo.get_nr_days_since_last_rating(
-            date_match, False, elo1_court, date_last_elo1_courtcat
+            date_match, False, elo1_court, date_last_elo1_court
         )
         _, days_since_last_elo2_court = PlayerElo.get_nr_days_since_last_rating(
-            date_match, False, elo2_court, date_last_elo2_courtcat
+            date_match, False, elo2_court, date_last_elo2_court
         )
 
         # init the 2 var in case not updated later
@@ -405,34 +797,11 @@ class PlayerElo:
         elo2_court_after = elo2_court
         proba_match1 = -1
         proba_match1_court = -1
-        """matchdetails1: MatchDetails = MatchDetails(
-            trn_rk,
-            idround,
-            is_completed,
-            id2,
-            nbsets_won1,
-            nbsets_won2,
-            elo2,
-            nbelo2,
-            elo2_court,
-            nbelo2_court,
-        )
-        matchdetails2: MatchDetails = MatchDetails(
-            trn_rk,
-            idround,
-            is_completed,
-            id1,
-            nbsets_won2,
-            nbsets_won1,
-            elo1,
-            nbelo1,
-            elo1_court,
-            nbelo1_court,
-        )"""
         if is_completed:
-            proba_match1 = round(PlayerElo.get_match_proba(elo2, elo1), 3)
+            nbsetstowin = max(nbsets_won1, nbsets_won2)
+            proba_match1 = round(PlayerElo.get_match_proba(elo2, elo1, nbsetstowin), 3)
             proba_match1_court = round(
-                PlayerElo.get_match_proba(elo2_court, elo1_court), 3
+                PlayerElo.get_match_proba(elo2_court, elo1_court, nbsetstowin), 3
             )
             if issetbysetupdate:
                 elo1after, elo2after = PlayerElo.get_new_elo_ratings_setbyset(
@@ -542,290 +911,6 @@ class PlayerElo:
         )
 
     @staticmethod
-    def get_nr_days_since_last_rating(
-        date_match, isadj_for_out_period, elo1, date_last_elo1
-    ):
-        if date_last_elo1 >= 0:
-            date_last_elo1 = PlayersElo.get_datetime(date_last_elo1)
-            if elo1 > 1600 and isadj_for_out_period:
-                # only check out periods for players in top 100
-                # because others might have gone to lower level rather than
-                # really being out
-                days_since_last_elo1 = calc_datediff_withoutoffseason(
-                    date_match, date_last_elo1
-                )
-                eloadj1 = PlayerElo.get_adjustment_elo_when_player_was_out(
-                    days_since_last_elo1
-                )
-                elo1 = elo1 + eloadj1
-            else:
-                days_since_last_elo1 = max(0, (date_match - date_last_elo1).days)
-        else:
-            days_since_last_elo1 = -1
-        return elo1, days_since_last_elo1
-
-    @staticmethod
-    def __get_new_elo_ratings(
-        rating1: float,
-        rating2: float,
-        aKcoeff1: float,
-        aKcoeff2: float,
-        is_player1won: bool,
-    ) -> Tuple[float, float]:
-        """Private. Calculate the new Elo ratings for both players after the match.
-
-        Args:
-            rating1 (float): [description]
-            rating2 (float): [description]
-            aKcoeff1 (float): [description]
-            aKcoeff2 (float): [description]
-            is_player1won (bool): [description]
-
-        Returns:
-            Tuple[float, float]:
-            - New rating P1
-            - New rating P2
-        """
-        proba_match2 = PlayerElo.get_match_proba(rating1, rating2)
-        proba_match1 = PlayerElo.get_match_proba(rating2, rating1)
-
-        if is_player1won:
-            rating1 = rating1 + aKcoeff1 * (1 - proba_match1)
-            rating2 = rating2 + aKcoeff2 * (0 - proba_match2)
-        else:
-            rating1 = rating1 + aKcoeff1 * (0 - proba_match1)
-            rating2 = rating2 + aKcoeff2 * (1 - proba_match2)
-        return round(rating1, 1), round(rating2, 1)
-
-    @staticmethod
-    def get_new_elo_ratings_match(
-        rating1: float,
-        rating2: float,
-        nbmatches1: int,
-        nbmatches2: int,
-        is_player1_won: bool,
-        idround: int,
-        trnrk: int,
-    ) -> Tuple[float, float]:
-        """Calculate the new Elo ratings for both players after the match. Using MATCH method (not set_by_set)
-
-        Args:
-            rating1 (float): [description]
-            rating2 (float): [description]
-            nbmatches1 (int): [description]
-            nbmatches2 (int): [description]
-            is_player1_won (bool): [description]
-            is_slam (bool): [description]
-            idround (int): [description]
-            trnrk (int): [description]
-        Returns:
-            Tuple[float, float]: [description]
-        """
-        if rating2 < 0 or rating1 < 0:
-            return rating1, rating2
-        coeffKA = PlayerElo.get_Kcoeff(nbmatches1, nbmatches2, idround, trnrk)
-        coeffKB = PlayerElo.get_Kcoeff(nbmatches2, nbmatches1, idround, trnrk)
-        return PlayerElo.__get_new_elo_ratings(
-            rating1, rating2, coeffKA, coeffKB, is_player1_won
-        )
-
-    @staticmethod
-    def get_new_elo_ratings_setbyset(
-        rating1: float,
-        rating2: float,
-        nbmatches1: int,
-        nbmatches2: int,
-        nbsets_won1: int,
-        nbsets_won2: int,
-        trnrk: int,
-        idround: int,
-    ) -> Tuple[int, int]:
-        """Calculate the new Elo ratings for both players after the match. Using set_by_set method (not MATCH)
-
-        Args:
-            rating1 (float): [description]
-            rating2 (float): [description]
-            nbmatches1 (int): [description]
-            nbmatches2 (int): [description]
-            nbsets_won1 (int): [description]
-            nbsets_won2 (int): [description]
-            trnrk (int): [description]
-            idround (int): [description]
-
-        Returns:
-            Tuple[int, int]: [description]
-        """
-        # is_slam = False
-        gainToRating1 = 0
-        gainToRating2 = 0
-        for i in range(1, nbsets_won1 + 1):
-            newratings = PlayerElo.get_new_elo_ratings_match(
-                rating1,
-                rating2,
-                nbmatches1,
-                nbmatches2,
-                True,
-                trnrk,
-                idround,
-            )
-            gainToRating1, gainToRating2 = (
-                gainToRating1 + newratings[0] - rating1,
-                gainToRating2 + newratings[1] - rating2,
-            )
-
-        for i in range(1, nbsets_won2 + 1):
-            newratings = PlayerElo.get_new_elo_ratings_match(
-                rating1,
-                rating2,
-                nbmatches1,
-                nbmatches2,
-                False,
-                trnrk,
-                idround,
-            )
-            gainToRating1, gainToRating2 = (
-                gainToRating1 + newratings[0] - rating1,
-                gainToRating2 + newratings[1] - rating2,
-            )
-        is_bestof5sets = max(nbsets_won1, nbsets_won2) >= 3
-        if is_bestof5sets:
-            # gains ared divided by 1.5 as there is 3 sets rather than 2 sets in BO5, and 5 rather than 3
-            return round(rating1 + gainToRating1 / 1.5, 1), round(
-                rating2 + gainToRating2 / 1.5, 1
-            )
-        else:
-            return round(rating1 + gainToRating1), round(rating2 + gainToRating2, 1)
-
-    @staticmethod
-    def get_elobeforematch_orcreate(
-        listplayers: dict, name: str, id: str, idcourt_cat: int, rank: int, isatp: bool
-    ):
-        """[summary]
-
-        Args:
-            listplayers (dict): [description]
-            name (str): [description]
-            id (str): [description]
-            idcourt_cat (int): 0(all), 1 (clay) or 2 (non clay)
-            rank (int): [description]
-            isatp (bool): [description]
-
-        Returns Tuple:
-        - PlayerElo
-        - int: value of latest Elo rating
-        - int: nb matches for the calculation of this latest rating
-        - int: (-1 if no previous elo)date with format(YYYYMMDDx) where X is the match id of that day (often 0)
-        """
-        player: PlayerElo
-        player = listplayers.get(id, None)
-        if player == None:
-            # player not created yet
-            player = PlayerElo(name=name, id=id, rank=rank)
-            listplayers[id] = player
-        latest_rating = player.get_latest_rating(idcourt_cat)
-        return (player, latest_rating[0], latest_rating[1], latest_rating[2])
-
-    @staticmethod
-    def get_Kcoeff(
-        nbmatches: int, nbmatchesopp: int, roundid: int, trnrk: int
-    ) -> float:
-        """[summary]
-
-        Args:
-            nbmatches (int): [description]
-            nbmatchesopp (int): set to 1000+ to ignore
-            roundid (int): [description]
-            trnrk (int): [description]
-            is_slam (bool): [description]
-
-        Returns:
-            float: [description]
-        """
-        # ToDo if (days_since_last_elo)
-        aCoeffK = 1
-
-        if trnrk < 2 or trnrk == 6:
-            # Level Challenger or -
-            aCoeffK = 0.6
-        if roundid == 4:
-            # Round 2 or -
-            aCoeffK = aCoeffK * 0.85
-        elif roundid == 5:
-            # Round 2 or -
-            aCoeffK = aCoeffK * 0.95
-        elif roundid < 4:
-            # Round 2 or -
-            aCoeffK = aCoeffK * 0.7
-        if trnrk == 4 and roundid >= 4:
-            aCoeffK *= 1.15
-
-        # 538 K-Factor https://www.betfair.com.au/hub/tennis-elo-modelling/
-        # which is 130 at start and 20 after 250 matches
-        coeffKplayer = aCoeffK * 250 / ((nbmatches + 5) ** 0.4)
-
-        if nbmatchesopp < PlayerElo.coeff_KCoeff_opp:
-            # if the ELO of the opponent is not really defined yet (less than 100 sets/matches)
-            # K factor is largely decreased (as the opp's ELO rating can't be trusted)
-            # K is divided by (for p_KCoeff_opp=50):
-            #  - 5 if 10 matches or less for opp
-            #  - 2 if 25 matches
-            #  - 1 if 50+ matches...
-            coeffKplayer = coeffKplayer / max(
-                1, PlayerElo.coeff_KCoeff_opp / min(max(nbmatchesopp, 1), 10)
-            )
-        return coeffKplayer
-
-    @staticmethod
-    def get_elo_value_from_rank(rank, isatp: bool) -> int:
-        ranks_elo_min = ListRankEloATPMin
-        values_elo_rank = values_elo_rankATP
-        if not (isatp):
-            list = ListRankEloWTAMin
-            list2 = values_elo_rankWTA
-
-        if rank < 1 or rank >= ranks_elo_min[0]:
-            # init all players at this minimum value
-            return round(values_elo_rank[0])
-        index = 0
-        while rank < ranks_elo_min[index]:
-            index += 1
-        # valueELo will be a weighted average of the value
-        valueEloIntervallMin = 0
-        intervalMin = ranks_elo_min[0]
-        intervalMax = ranks_elo_min[index]
-        if index > 0:
-            valueEloIntervallMin = values_elo_rank[index - 1]
-            intervalMin = ranks_elo_min[index - 1]
-        valueEloIntervallMax = values_elo_rank[index]
-        valueElo = (
-            valueEloIntervallMax * (intervalMin - rank)
-            + valueEloIntervallMin * (rank - intervalMax)
-        ) / (intervalMin - intervalMax)
-        return round(valueElo)
-
-    @staticmethod
-    def get_match_proba(rating1, rating2) -> float:
-        """Return the proba for player 1
-
-        Args:
-            rating1 ([type]): rating P2!
-            rating2 ([type]): rating P1!
-
-        Returns:
-            float: [description]
-        """
-
-        return (1 + 10 ** ((rating1 - rating2) / 400.0)) ** -1
-
-
-########################################################################################
-########################################################################################
-########################################################################################
-########################################################################################
-
-
-class PlayersElo:
-    @staticmethod
     def get_datetime(myelodate: int) -> datetime:
         """Returns a datetime from the ELO date
 
@@ -921,7 +1006,7 @@ class PlayersElo:
             pe = {}
             try:
                 for k, v in o.items():
-                    obj = PlayerElo(name="0", id="0", rank=-1)
+                    obj = PlayerElo(name="0", id="0")  # , rank=-1)
                     obj.__dict__.update(v)
                     pe[int(k)] = obj
                 return pe
@@ -947,7 +1032,7 @@ class PlayersElo:
             player = players[p]
             last_rating = player.get_latest_rating(idcourt_cat)
             if int(str(last_rating[2])[0:4]) >= year and last_rating[1] > 25:
-                playerCopy = PlayerElo(name=player.name, id=player.id, rank=-1)
+                playerCopy = PlayerElo(name=player.name, id=player.id)  # , rank=-1)
                 filtered_dict = {
                     k: v
                     for (k, v) in player.eloratings.items()
