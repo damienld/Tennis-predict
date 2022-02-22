@@ -97,7 +97,6 @@ def translate_tipstop_data(is_atp: bool, filename: str) -> DataFrame:
             "name",
             "position",
             "setswon",
-            "is_win",
             "surface",  # Hard Unknown Clay Grass Carpet
             "inoutdoor",  # Indoor Outdoor
             "round",
@@ -147,7 +146,6 @@ def translate_tipstop_data(is_atp: bool, filename: str) -> DataFrame:
     dfMatches = dfMatches[
         ["eventid", "Date", "CourtId", "P1Id", "P2Id", "P1", "P2", "TrnRk", "RoundId","SetsP1","SetsP2","IsCompleted"]
     ]
-    dfMatches.to_csv("../tipstop_elo/{0}.csv".format(gender))
     return dfMatches
 
 

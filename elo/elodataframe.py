@@ -176,7 +176,15 @@ def get_mixed_elo(row) -> float:
             elomix2[0], elomix1[0], max(nbsets_won1, nbsets_won2)
         )
     else:
-        return -1
+        elomix1 = PlayerElo.get_elo_from_mixed(
+            row["Elo1"], row["Elo1Court"], row["nbElo1Court"]
+        )
+        elomix2 = PlayerElo.get_elo_from_mixed(
+            row["Elo2"], row["Elo2Court"], row["nbElo2Court"]
+        )
+        return PlayerElo.get_match_proba(
+            elomix2[0], elomix1[0], max(nbsets_won1, nbsets_won2)
+        )
 
 
 def get_mixed_elo2(row) -> float:
@@ -202,7 +210,23 @@ def get_mixed_elo2(row) -> float:
             elomix2[0], elomix1[0], max(nbsets_won1, nbsets_won2)
         )
     else:
-        return -1
+        elomix1 = PlayerElo.get_elo_from_mixed2(
+            row["Elo1"],
+            row["Elo1Court"],
+            row["nbElo1Court"],
+            row["Elo1court9m"],
+            row["nbElo1court9m"],
+        )
+        elomix2 = PlayerElo.get_elo_from_mixed2(
+            row["Elo2"],
+            row["Elo2Court"],
+            row["nbElo2Court"],
+            row["Elo2court9m"],
+            row["nbElo2court9m"],
+        )
+        return PlayerElo.get_match_proba(
+            elomix2[0], elomix1[0], max(nbsets_won1, nbsets_won2)
+        )
 
 
 def apply_mixed_elo(df_to_update: DataFrame) -> DataFrame:

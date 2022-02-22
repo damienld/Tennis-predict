@@ -27,7 +27,7 @@ def delete_duplicated(dfglobal: DataFrame, df_with_updates: DataFrame) -> DataFr
 
 if __name__ == "__main__":
     path = "../tipstop_elo/"
-    filename = "tennis_update.csv"
+    filename = sys.argv[1]  # "tennis_update.csv"
     isatp = True
     # load existing df and playerElo
     playersElo, dfWithElos = load_playersElo(isatp, None, path)
